@@ -61,7 +61,7 @@ jobs:
         if: env.CHANGES == 'true'
         run: cat outputs.json
 
-      - name: Debugging: Check existence of outputs.json
+      - name: Check existence of outputs.json
         if: env.CHANGES == 'true'
         run: ls -la
 
