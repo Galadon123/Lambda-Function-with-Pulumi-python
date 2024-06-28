@@ -23,6 +23,7 @@ jobs:
       - name: Parse Pulumi outputs
         id: parse_outputs
         run: |
+          cat ./outputs/outputs.json
           ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs/outputs.json)
           ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs/outputs.json)
           LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs/outputs.json)
