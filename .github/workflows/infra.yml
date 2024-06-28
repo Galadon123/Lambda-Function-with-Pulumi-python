@@ -61,11 +61,9 @@ jobs:
         if: env.CHANGES == 'true'
         run: cat outputs.json
 
-      - name: Debug: Check existence of outputs.json
+      - name: Check existence of outputs.json
         if: env.CHANGES == 'true'
-        run: |
-          echo "Checking if outputs.json exists"
-          ls -la outputs.json
+        run: ls -la
 
       - name: Save outputs to artifacts
         if: env.CHANGES == 'true'
