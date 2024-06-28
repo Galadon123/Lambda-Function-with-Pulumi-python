@@ -1,10 +1,9 @@
 name: Deploy Lambda Function
 
 on:
-  workflow_run:
-    workflows: ["Pulumi Deploy"]
-    types:
-      - completed
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -13,28 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Download Pulumi outputs
-        uses: actions/download-artifact@v2
-        with:
-          name: pulumi-outputs
-          path: ./outputs
-
-      - name: Check downloaded artifact
-        run: |
-          echo "Checking if pulumi-outputs is downloaded"
-          ls -la ./outputs
-
-      - name: Parse Pulumi outputs
-        id: parse_outputs
-        run: |
-          cat ./outputs/outputs.json
-          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs/outputs.json)
-          ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs/outputs.json)
-          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs/outputs.json)
-          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -51,12 +28,12 @@ jobs:
 
       - name: Login to AWS ECR
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 767397805679.dkr.ecr.us-east-1.amazonaws.com/my-lambda-function-67726dd
 
       - name: Build and push Docker image
         env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: 730335365460.dkr.ecr.us-east-1.amazonaws.com
+          ECR_REPOSITORY: my-lambda-function-67726dd
           IMAGE_TAG: latest
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -67,15 +44,26 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: 730335365460.dkr.ecr.us-east-1.amazonaws.com
+          ECR_REPOSITORY: my-lambda-function-67726dd
           IMAGE_TAG: latest
-          LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
+          LAMBDA_ROLE_ARN: arn:aws:iam::767397805679:role/lambda-role-87ce922 # Replace with your IAM role ARN for Lambda
         run: |
           FUNCTION_NAME=my-lambda-function
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          VPC_CONFIG=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=private-subnet" --query "Subnets[0].SubnetId" --region $AWS_REGION --output text)
-          SG_CONFIG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=lambda-security-group" --query "SecurityGroups[0].GroupId" --region $AWS_REGION --output text)
           EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
           if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
-            echo "Creating new Lambda
+            echo "Creating new Lambda function..."
+            aws lambda create-function \
+              --function-name $FUNCTION_NAME \
+              --package-type Image \
+              --code ImageUri=$IMAGE_URI \
+              --role $LAMBDA_ROLE_ARN \
+              --region $AWS_REGION
+          else
+            echo "Updating existing Lambda function..."
+            aws lambda update-function-code \
+              --function-name $FUNCTION_NAME \
+              --image-uri $IMAGE_URI \
+              --region $AWS_REGION
+          fi
