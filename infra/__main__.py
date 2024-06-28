@@ -1,72 +1,122 @@
 import pulumi
 import pulumi_aws as aws
 
-# Create a VPC
-vpc = aws.ec2.Vpc("my-vpc",
-                  cidr_block="10.0.0.0/16",
-                  tags={"Name": "my-vpc"})
+class Vpc:
+    def __init__(self, name: str, cidr_block: str, tags: dict):
+        self.vpc = aws.ec2.Vpc(name,
+                               cidr_block=cidr_block,
+                               tags=tags)
 
-# Create a private subnet
-private_subnet = aws.ec2.Subnet("private-subnet",
-                                vpc_id=vpc.id,
-                                cidr_block="10.0.4.0/24",
-                                availability_zone="us-east-1a",
-                                tags={"Name": "private-subnet"})
+    @property
+    def id(self):
+        return self.vpc.id
 
-# Create an ECR repository
-ecr_repo = aws.ecr.Repository("my-ecr-repo",
-                              image_tag_mutability="MUTABLE",
-                              image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
-                                  scan_on_push=True),
-                              tags={"Name": "my-ecr-repo"})
+class Subnet:
+    def __init__(self, name: str, vpc_id: pulumi.Output[str], cidr_block: str, availability_zone: str, tags: dict):
+        self.subnet = aws.ec2.Subnet(name,
+                                     vpc_id=vpc_id,
+                                     cidr_block=cidr_block,
+                                     availability_zone=availability_zone,
+                                     tags=tags)
 
-# Create an IAM role for Lambda
-lambda_role = aws.iam.Role("lambda-role",
-                           assume_role_policy=aws.iam.get_policy_document(statements=[aws.iam.GetPolicyDocumentStatementArgs(
-                               actions=["sts:AssumeRole"],
-                               principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
-                                   type="Service",
-                                   identifiers=["lambda.amazonaws.com"]
-                               )],
-                               effect="Allow",
-                           )]).json)
+    @property
+    def id(self):
+        return self.subnet.id
 
-# Attach a policy to the Lambda role that allows necessary actions
-lambda_policy = aws.iam.RolePolicy("lambda-policy",
-                                   role=lambda_role.id,
-                                   policy=aws.iam.get_policy_document(statements=[
-                                       aws.iam.GetPolicyDocumentStatementArgs(
-                                           actions=[
-                                               "logs:CreateLogGroup",
-                                               "logs:CreateLogStream",
-                                               "logs:PutLogEvents",
-                                               "ecr:GetDownloadUrlForLayer",
-                                               "ecr:BatchGetImage",
-                                               "ecr:BatchCheckLayerAvailability",
-                                               "ec2:CreateNetworkInterface",
-                                               "ec2:DescribeNetworkInterfaces",
-                                               "ec2:DeleteNetworkInterface"
-                                           ],
-                                           resources=["*"],
-                                           effect="Allow",
-                                       )
-                                   ]).json)
+class EcrRepository:
+    def __init__(self, name: str, image_scanning_configuration: dict, tags: dict):
+        self.repository = aws.ecr.Repository(name,
+                                             image_scanning_configuration=image_scanning_configuration,
+                                             tags=tags)
 
-# Create a security group for Lambda
-lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
-                                              vpc_id=vpc.id,
-                                              egress=[aws.ec2.SecurityGroupEgressArgs(
-                                                  protocol="-1",
-                                                  from_port=0,
-                                                  to_port=0,
-                                                  cidr_blocks=["0.0.0.0/0"],
-                                              )],
-                                              tags={"Name": "lambda-security-group"})
+    @property
+    def repository_url(self):
+        return self.repository.repository_url
 
-# Export the VPC ID, Subnet ID, Security Group ID, ECR Repository URL, and Lambda Role ARN
+class IamRole:
+    def __init__(self, name: str, assume_role_policy: str):
+        self.role = aws.iam.Role(name,
+                                 assume_role_policy=assume_role_policy)
+
+    @property
+    def id(self):
+        return self.role.id
+
+class IamRolePolicy:
+    def __init__(self, name: str, role_id: pulumi.Output[str], policy: str):
+        self.policy = aws.iam.RolePolicy(name,
+                                         role=role_id,
+                                         policy=policy)
+
+class SecurityGroup:
+    def __init__(self, name: str, vpc_id: pulumi.Output[str], egress: list, tags: dict):
+        self.security_group = aws.ec2.SecurityGroup(name,
+                                                    vpc_id=vpc_id,
+                                                    egress=egress,
+                                                    tags=tags)
+
+    @property
+    def id(self):
+        return self.security_group.id
+
+# Create resources
+vpc = Vpc("my-vpc", "10.0.0.0/16", {"Name": "my-vpc"})
+private_subnet = Subnet("private-subnet", vpc.id, "10.0.1.0/24", "us-east-1a", {"Name": "private-subnet"})
+ecr_repo = EcrRepository("my-lambda-function", {"scanOnPush": True}, {"Name": "my-lambda-function"})
+lambda_role = IamRole("lambda-role", """{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Principal": {
+                "Service": "lambda.amazonaws.com"
+            },
+            "Effect": "Allow",
+            "Sid": ""
+        }
+    ]
+}""")
+lambda_policy = IamRolePolicy("lambda-policy", lambda_role.id, """{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DeleteNetworkInterface"
+            ],
+            "Resource": "*"
+        }
+    ]
+}""")
+lambda_security_group = SecurityGroup("lambda-security-group", vpc.id, [{
+    "protocol": "-1",
+    "from_port": 0,
+    "to_port": 0,
+    "cidr_blocks": ["0.0.0.0/0"],
+}], {"Name": "lambda-security-group"})
+
+# Export the IDs
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("private_subnet_id", private_subnet.id)
 pulumi.export("ecr_repo_url", ecr_repo.repository_url)
-pulumi.export("ecr_registry_id", ecr_repo.registry_id)
-pulumi.export("lambda_role_arn", lambda_role.arn)
 pulumi.export("lambda_security_group_id", lambda_security_group.id)
