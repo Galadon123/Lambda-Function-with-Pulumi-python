@@ -20,8 +20,10 @@ jobs:
           name: pulumi-outputs
           path: ./outputs
 
-      - name: Check downloaded artifact
-        run: ls -la ./outputs
+      - name: Debug: Check downloaded artifact
+        run: |
+          echo "Checking if pulumi-outputs is downloaded"
+          ls -la ./outputs
 
       - name: Parse Pulumi outputs
         id: parse_outputs
