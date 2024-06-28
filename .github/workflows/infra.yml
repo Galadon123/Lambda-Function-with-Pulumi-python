@@ -67,13 +67,9 @@ jobs:
           echo "Checking if outputs.json exists"
           ls -la outputs.json
 
-      - name: Save outputs to artifacts
+      - name: Cache Pulumi outputs
         if: env.CHANGES == 'true'
-        uses: actions/upload-artifact@v2
+        uses: actions/cache@v2
         with:
-          name: pulumi-outputs
           path: outputs.json
-
-      - name: Confirm artifact upload
-        if: env.CHANGES == 'true'
-        run: echo "Artifact uploaded successfully."
+          key: pulumi-outputs-${{ github.sha }}
