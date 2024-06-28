@@ -14,70 +14,53 @@ private_subnet = aws.ec2.Subnet("private-subnet",
                                 tags={"Name": "private-subnet"})
 
 # Create an ECR repository
-ecr_repo = aws.ecr.Repository("my-lambda-function",
-                              image_scanning_configuration={"scanOnPush": True},
-                              tags={"Name": "my-lambda-function"})
+ecr_repo = aws.ecr.Repository("my-ecr-repo",
+                              image_tag_mutability="MUTABLE",
+                              image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
+                                  scan_on_push=True),
+                              tags={"Name": "my-ecr-repo"})
 
 # Create an IAM role for Lambda
 lambda_role = aws.iam.Role("lambda-role",
-                           assume_role_policy="""{
-                               "Version": "2012-10-17",
-                               "Statement": [
-                                   {
-                                       "Action": "sts:AssumeRole",
-                                       "Principal": {
-                                           "Service": "lambda.amazonaws.com"
-                                       },
-                                       "Effect": "Allow",
-                                       "Sid": ""
-                                   }
-                               ]
-                           }""")
+                           assume_role_policy=aws.iam.get_policy_document(statements=[aws.iam.GetPolicyDocumentStatementArgs(
+                               actions=["sts:AssumeRole"],
+                               principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
+                                   type="Service",
+                                   identifiers=["lambda.amazonaws.com"]
+                               )],
+                               effect="Allow",
+                           )]).json)
 
+# Attach a policy to the Lambda role that allows necessary actions
 lambda_policy = aws.iam.RolePolicy("lambda-policy",
                                    role=lambda_role.id,
-                                   policy="""{
-                                       "Version": "2012-10-17",
-                                       "Statement": [
-                                           {
-                                               "Effect": "Allow",
-                                               "Action": [
-                                                   "logs:CreateLogGroup",
-                                                   "logs:CreateLogStream",
-                                                   "logs:PutLogEvents"
-                                               ],
-                                               "Resource": "arn:aws:logs:*:*:*"
-                                           },
-                                           {
-                                               "Effect": "Allow",
-                                               "Action": [
-                                                   "ecr:GetDownloadUrlForLayer",
-                                                   "ecr:BatchGetImage",
-                                                   "ecr:BatchCheckLayerAvailability"
-                                               ],
-                                               "Resource": "*"
-                                           },
-                                           {
-                                               "Effect": "Allow",
-                                               "Action": [
-                                                   "ec2:CreateNetworkInterface",
-                                                   "ec2:DescribeNetworkInterfaces",
-                                                   "ec2:DeleteNetworkInterface"
-                                               ],
-                                               "Resource": "*"
-                                           }
-                                       ]
-                                   }""")
+                                   policy=aws.iam.get_policy_document(statements=[
+                                       aws.iam.GetPolicyDocumentStatementArgs(
+                                           actions=[
+                                               "logs:CreateLogGroup",
+                                               "logs:CreateLogStream",
+                                               "logs:PutLogEvents",
+                                               "ecr:GetDownloadUrlForLayer",
+                                               "ecr:BatchGetImage",
+                                               "ecr:BatchCheckLayerAvailability",
+                                               "ec2:CreateNetworkInterface",
+                                               "ec2:DescribeNetworkInterfaces",
+                                               "ec2:DeleteNetworkInterface"
+                                           ],
+                                           resources=["*"],
+                                           effect="Allow",
+                                       )
+                                   ]).json)
 
 # Create a security group for Lambda
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
                                               vpc_id=vpc.id,
-                                              egress=[{
-                                                  "protocol": "-1",
-                                                  "from_port": 0,
-                                                  "to_port": 0,
-                                                  "cidr_blocks": ["0.0.0.0/0"],
-                                              }],
+                                              egress=[aws.ec2.SecurityGroupEgressArgs(
+                                                  protocol="-1",
+                                                  from_port=0,
+                                                  to_port=0,
+                                                  cidr_blocks=["0.0.0.0/0"],
+                                              )],
                                               tags={"Name": "lambda-security-group"})
 
 # Export the VPC ID, Subnet ID, Security Group ID, ECR Repository URL, and Lambda Role ARN
