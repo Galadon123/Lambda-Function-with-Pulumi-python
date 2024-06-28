@@ -20,7 +20,7 @@ ecr_repo = aws.ecr.Repository("my-ecr-repo",
                                   scan_on_push=True),
                               tags={"Name": "my-ecr-repo"})
 
-# Create an IAM role for Lambda
+# IAM role for Lambda with policy to access ECR
 assume_role_policy = json.dumps({
     "Version": "2012-10-17",
     "Statement": [{
@@ -36,12 +36,34 @@ assume_role_policy = json.dumps({
 lambda_role = aws.iam.Role("lambda-role",
                            assume_role_policy=assume_role_policy)
 
-# Attach the AWS managed ECR power user policy to the IAM role
-managed_policy_attachment = aws.iam.RolePolicyAttachment("lambda-role-ecr-poweruser",
-                                                        role=lambda_role.name,
-                                                        policy_arn="arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser")
+# Custom policy for managing ECR
+ecr_policy_document = aws.iam.get_policy_document(statements=[
+    aws.iam.GetPolicyDocumentStatementArgs(
+        effect="Allow",
+        actions=[
+            "ecr:DeleteRepository",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage",
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:PutImage",
+            "ecr:InitiateLayerUpload",
+            "ecr:UploadLayerPart",
+            "ecr:CompleteLayerUpload",
+            "ecr:DescribeRepositories",
+            "ecr:ListImages",
+            "ecr:DeleteRepositoryPolicy",
+            "ecr:SetRepositoryPolicy"
+        ],
+        resources=[ecr_repo.arn]
+    )
+])
 
-# Create a security group for Lambda
+# Attach the custom ECR policy to the Lambda role
+lambda_ecr_policy = aws.iam.RolePolicy("lambda-ecr-policy",
+                                      role=lambda_role.id,
+                                      policy=ecr_policy_document.json)
+
+# Create a security group for Lambda in the VPC
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
                                               vpc_id=vpc.id,
                                               egress=[aws.ec2.SecurityGroupEgressArgs(
@@ -52,7 +74,9 @@ lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
                                               )],
                                               tags={"Name": "lambda-security-group"})
 
-# Export the VPC ID, Subnet ID, ECR Repository URL
+# Export the IDs and URLs for easy access
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("private_subnet_id", private_subnet.id)
 pulumi.export("ecr_repo_url", ecr_repo.repository_url)
+pulumi.export("ecr_repo_arn", ecr_repo.arn)
+pulumi.export("lambda_role_arn", lambda_role.arn)
