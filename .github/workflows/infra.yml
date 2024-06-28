@@ -46,7 +46,7 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          CHANGES=$(jq 'select(.changeSummary.create || .changeSummary.update || .changeSummary.replace || .changeSummary.delete) | length > 0' preview.json)
+          CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)
           echo "CHANGES=$CHANGES" >> $GITHUB_ENV
 
       - name: Pulumi up
@@ -55,7 +55,8 @@ jobs:
 
       - name: Export Pulumi outputs
         if: env.CHANGES == 'true'
-        run: pulumi stack output --json --cwd infra > outputs.json
+        run: |
+          pulumi stack output --json --cwd infra > outputs.json
 
       - name: Verify Pulumi outputs
         if: env.CHANGES == 'true'
