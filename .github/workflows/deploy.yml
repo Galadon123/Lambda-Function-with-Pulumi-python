@@ -1,4 +1,4 @@
-name: Deploy Infrastructure and Lambda Function
+name: Deploy Infrastructure
 
 on:
   push:
@@ -36,15 +36,23 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: pulumi login
 
+      - name: Change to infra directory
+        run: cd infra
+
       - name: Pulumi stack select
-        run: pulumi stack select dev
+        run: |
+          cd infra
+          pulumi stack select dev
 
       - name: Pulumi up
-        run: pulumi up --yes
+        run: |
+          cd infra
+          pulumi up --yes
 
       - name: Get Pulumi stack output
         id: pulumi_output
         run: |
+          cd infra
           OUTPUT=$(pulumi stack output --json)
           echo "ECR_REPO_URL=$(echo $OUTPUT | jq -r '.ecr_repo_url')" >> $GITHUB_ENV
           echo "ECR_REGISTRY_ID=$(echo $OUTPUT | jq -r '.ecr_registry_id')" >> $GITHUB_ENV
