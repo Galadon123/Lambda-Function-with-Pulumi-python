@@ -20,16 +20,18 @@ ecr_repo = aws.ecr.Repository("my-ecr-repo",
                                   scan_on_push=True),
                               tags={"Name": "my-ecr-repo"})
 
-# Create an IAM role for Lambda
+# Create an IAM role for Lambda with an inline policy document
+assume_role_policy = aws.iam.get_policy_document(statements=[aws.iam.GetPolicyDocumentStatementArgs(
+    actions=["sts:AssumeRole"],
+    principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
+        type="Service",
+        identifiers=["lambda.amazonaws.com"]
+    )],
+    effect="Allow",
+)]).json
+
 lambda_role = aws.iam.Role("lambda-role",
-                           assume_role_policy=aws.iam.get_policy_document(statements=[aws.iam.GetPolicyDocumentStatementArgs(
-                               actions=["sts:AssumeRole"],
-                               principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
-                                   type="Service",
-                                   identifiers=["lambda.amazonaws.com"]
-                               )],
-                               effect="Allow",
-                           )]).json)
+                           assume_role_policy=assume_role_policy)
 
 # Attach a policy to the Lambda role that allows necessary actions
 lambda_policy = aws.iam.RolePolicy("lambda-policy",
@@ -50,7 +52,8 @@ lambda_policy = aws.iam.RolePolicy("lambda-policy",
                                            resources=["*"],
                                            effect="Allow",
                                        )
-                                   ]).json)
+                                   ]).json,
+                                   opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
 # Create a security group for Lambda
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
