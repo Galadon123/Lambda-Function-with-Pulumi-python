@@ -1,4 +1,4 @@
-name: Deploy Lambda Function
+name: Deploy Infrastructure and Lambda Function
 
 on:
   push:
@@ -13,12 +13,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install pulumi pulumi-aws
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Pulumi login
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: pulumi login
+
+      - name: Pulumi stack select
+        run: pulumi stack select dev
+
+      - name: Pulumi up
+        run: pulumi up --yes
+
+      - name: Get Pulumi stack output
+        id: pulumi_output
+        run: |
+          OUTPUT=$(pulumi stack output --json)
+          echo "ECR_REPO_URL=$(echo $OUTPUT | jq -r '.ecr_repo_url')" >> $GITHUB_ENV
+          echo "ECR_REGISTRY_ID=$(echo $OUTPUT | jq -r '.ecr_registry_id')" >> $GITHUB_ENV
+          echo "LAMBDA_ROLE_ARN=$(echo $OUTPUT | jq -r '.lambda_role_arn')" >> $GITHUB_ENV
 
       - name: Install AWS CLI
         run: |
@@ -28,29 +58,29 @@ jobs:
 
       - name: Login to AWS ECR
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 730335365460.dkr.ecr.us-east-1.amazonaws.com/my-lambda-function
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REPO_URL }}
 
       - name: Build and push Docker image
         env:
-          ECR_REGISTRY: 730335365460.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: my-lambda-function-7ef7443
+          ECR_REGISTRY: ${{ env.ECR_REPO_URL }}
+          ECR_REPOSITORY: my-lambda-function
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t $ECR_REGISTRY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY:$IMAGE_TAG
 
       - name: Create or update Lambda function
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-          ECR_REGISTRY: 730335365460.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: my-lambda-function-7ef7443
+          ECR_REGISTRY: ${{ env.ECR_REPO_URL }}
+          ECR_REPOSITORY: my-lambda-function
           IMAGE_TAG: latest
-          LAMBDA_ROLE_ARN: arn:aws:iam::730335365460:role/lambda-role-b76d667 # Replace with your IAM role ARN for Lambda
+          LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
         run: |
           FUNCTION_NAME=my-lambda-function
-          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          IMAGE_URI=$ECR_REGISTRY:$IMAGE_TAG
           VPC_CONFIG=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=private-subnet" --query "Subnets[0].SubnetId" --region $AWS_REGION --output text)
           SG_CONFIG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=lambda-security-group" --query "SecurityGroups[0].GroupId" --region $AWS_REGION --output text)
           EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
@@ -71,4 +101,6 @@ jobs:
               --region $AWS_REGION
             aws lambda update-function-configuration \
               --function-name $FUNCTION_NAME \
-              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$
+              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
+              --region $AWS_REGION
+          fi

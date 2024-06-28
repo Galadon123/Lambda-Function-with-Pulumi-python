@@ -80,8 +80,10 @@ lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
                                               }],
                                               tags={"Name": "lambda-security-group"})
 
-# Export the VPC ID, Subnet ID, Security Group ID
+# Export the VPC ID, Subnet ID, Security Group ID, ECR Repository URL, and Lambda Role ARN
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("private_subnet_id", private_subnet.id)
 pulumi.export("ecr_repo_url", ecr_repo.repository_url)
+pulumi.export("ecr_registry_id", ecr_repo.registry_id)
+pulumi.export("lambda_role_arn", lambda_role.arn)
 pulumi.export("lambda_security_group_id", lambda_security_group.id)

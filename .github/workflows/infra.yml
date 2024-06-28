@@ -39,5 +39,21 @@ jobs:
       - name: Pulumi stack select
         run: pulumi stack select dev
 
+      - name: Pulumi preview
+        id: pulumi-preview
+        run: pulumi preview --json > preview.json
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if pulumi --cwd . preview --diff --json | jq '.[0] .steps | length == 0'; then
+            echo "No changes detected."
+            echo "::set-output name=changes_detected::false"
+          else
+            echo "Changes detected."
+            echo "::set-output name=changes_detected::true"
+          fi
+
       - name: Pulumi up
+        if: steps.check-changes.outputs.changes_detected == 'true'
         run: pulumi up --yes
