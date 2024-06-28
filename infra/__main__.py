@@ -9,7 +9,7 @@ vpc = aws.ec2.Vpc("my-vpc",
 # Create a private subnet
 private_subnet = aws.ec2.Subnet("private-subnet",
                                 vpc_id=vpc.id,
-                                cidr_block="10.0.5.0/24",
+                                cidr_block="10.1.5.0/24",
                                 availability_zone="us-east-1a",
                                 tags={"Name": "private-subnet"})
 
@@ -84,3 +84,6 @@ lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("private_subnet_id", private_subnet.id)
 pulumi.export("ecr_repo_url", ecr_repo.repository_url)
+pulumi.export("ecr_registry", ecr_repo.registry_id)
+pulumi.export("lambda_role_arn", lambda_role.arn)
+pulumi.export("lambda_security_group_id", lambda_security_group.id)
