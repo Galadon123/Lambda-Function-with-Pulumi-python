@@ -36,6 +36,7 @@ jobs:
           ECR_REPOSITORY: my-lambda-function-67726dd
           IMAGE_TAG: latest
         run: |
+          cd deploy-in-lambda
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
