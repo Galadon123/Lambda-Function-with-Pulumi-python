@@ -123,3 +123,4 @@ jobs:
               --function-name $FUNCTION_NAME \
               --image-uri $IMAGE_URI \
               --region $AWS_REGION
+          fi
