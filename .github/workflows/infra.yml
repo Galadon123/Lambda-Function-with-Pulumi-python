@@ -39,36 +39,18 @@ jobs:
       - name: Pulumi stack select
         run: pulumi stack select dev --cwd infra
 
-      - name: Pulumi preview
-        id: pulumi-preview
-        run: pulumi preview --json --cwd infra > preview.json
-
-      - name: Check for changes
-        id: check_changes
-        run: |
-          echo "CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)" >> $GITHUB_ENV
-
       - name: Pulumi up
-        if: env.CHANGES == 'true'
-        run: pulumi up --yes --cwd infra
-
-      - name: Export Pulumi outputs
-        if: env.CHANGES == 'true'
+        id: pulumi-up
         run: |
-          pulumi stack output --json --cwd infra > outputs.json
-
-      - name: Verify Pulumi outputs
-        if: env.CHANGES == 'true'
-        run: cat outputs.json
-
-      - name: Parse Pulumi outputs
-        if: env.CHANGES == 'true'
-        id: parse_outputs
+          pulumi up --yes --cwd infra -s dev --json > result.json
+          cat result.json
+          
+      - name: Extract Pulumi outputs
+        id: extract_outputs
         run: |
-          cat outputs.json
-          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' outputs.json)
-          ECR_REGISTRY=$(jq -r '.ecr_registry' outputs.json)
-          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' outputs.json)
+          export ECR_REPOSITORY=$(jq -r '.change.summaries[] | select(.urn | test("aws:ecr/repository:Repository")) | .outputs.repositoryUrl.value' result.json)
+          export ECR_REGISTRY=$(jq -r '.change.summaries[] | select(.urn | test("aws:ecr/repository:Repository")) | .outputs.registryId.value' result.json)
+          export LAMBDA_ROLE_ARN=$(jq -r '.change.summaries[] | select(.urn | test("aws:iam/role:Role")) | .outputs.arn.value' result.json)
           echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
@@ -80,50 +62,39 @@ jobs:
           pip3 install awscli
 
       - name: Login to AWS ECR
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
         run: |
-          echo $AWS_ACCESS_KEY_ID
-          echo $AWS_SECRET_ACCESS_KEY
-          echo $ECR_REGISTRY
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
 
       - name: Build and push Docker image
-        env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          IMAGE_TAG: latest
         run: |
           cd deploy-in-lambda
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
       - name: Create or update Lambda function
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          IMAGE_TAG: latest
-          LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
         run: |
           FUNCTION_NAME=my-lambda-function
-          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
+          IMAGE_URI=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          VPC_CONFIG=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=private-subnet" --query "Subnets[0].SubnetId" --region us-east-1 --output text)
+          SG_CONFIG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=lambda-security-group" --query "SecurityGroups[0].GroupId" --region us-east-1 --output text)
+          EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region us-east-1 2>&1 || true)
           if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
             echo "Creating new Lambda function..."
             aws lambda create-function \
               --function-name $FUNCTION_NAME \
               --package-type Image \
               --code ImageUri=$IMAGE_URI \
-              --role $LAMBDA_ROLE_ARN \
-              --region $AWS_REGION
+              --role ${{ env.LAMBDA_ROLE_ARN }} \
+              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
+              --region us-east-1
           else
             echo "Updating existing Lambda function..."
             aws lambda update-function-code \
               --function-name $FUNCTION_NAME \
               --image-uri $IMAGE_URI \
-              --region $AWS_REGION
+              --region us-east-1
+            aws lambda update-function-configuration \
+              --function-name $FUNCTION_NAME \
+              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
+              --region us-east-1
+          fi
