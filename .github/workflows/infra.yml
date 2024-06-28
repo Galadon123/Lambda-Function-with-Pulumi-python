@@ -1,4 +1,4 @@
-name: Deploy Lambda Function
+name: Pulumi Deploy
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install pulumi pulumi-aws jq
+          pip install pulumi pulumi-aws
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -39,68 +39,37 @@ jobs:
       - name: Pulumi stack select
         run: pulumi stack select dev --cwd infra
 
+      - name: Pulumi preview
+        id: pulumi-preview
+        run: pulumi preview --json --cwd infra > preview.json
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          echo "CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)" >> $GITHUB_ENV
+
       - name: Pulumi up
-        id: pulumi-up
-        run: |
-          pulumi up --yes --cwd infra -s dev --json > result.json
-          cat result.json
+        if: env.CHANGES == 'true'
+        run: pulumi up --yes --cwd infra
 
-      - name: Extract Pulumi outputs
-        id: extract_outputs
+      - name: Export Pulumi outputs
+        if: env.CHANGES == 'true'
         run: |
-          export ECR_REPOSITORY=$(jq -r '.change.summaries[] | select(.urn | test("aws:ecr/repository:Repository")) | .outputs.repositoryUrl.value' result.json)
-          export ECR_REGISTRY=$(jq -r '.change.summaries[] | select(.urn | test("aws:ecr/repository:Repository")) | .outputs.registryId.value' result.json)
-          export LAMBDA_ROLE_ARN=$(jq -r '.change.summaries[] | select(.urn | test("aws:iam/role:Role")) | .outputs.arn.value' result.json)
-          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
-          echo "Extracted ECR_REGISTRY: $ECR_REGISTRY"
-          echo "Extracted ECR_REPOSITORY: $ECR_REPOSITORY"
-          echo "Extracted LAMBDA_ROLE_ARN: $LAMBDA_ROLE_ARN"
+          pulumi stack output --json --cwd infra > outputs.json
 
-      - name: Install AWS CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          pip3 install awscli
+      - name: Verify Pulumi outputs
+        if: env.CHANGES == 'true'
+        run: cat outputs.json
 
-      - name: Login to AWS ECR
+      - name: Check existence of outputs.json
+        if: env.CHANGES == 'true'
         run: |
-          echo "Logging into AWS ECR with registry: ${{ env.ECR_REGISTRY }}"
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+          echo "Checking if outputs.json exists"
+          ls -la outputs.json
 
-      - name: Build and push Docker image
-        run: |
-          cd deploy-in-lambda
-          echo "Building Docker image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
-          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
-          echo "Pushing Docker image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
-          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-
-      - name: Create or update Lambda function
-        run: |
-          FUNCTION_NAME=my-lambda-function
-          IMAGE_URI=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-          VPC_CONFIG=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=private-subnet" --query "Subnets[0].SubnetId" --region us-east-1 --output text)
-          SG_CONFIG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=lambda-security-group" --query "SecurityGroups[0].GroupId" --region us-east-1 --output text)
-          EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region us-east-1 2>&1 || true)
-          if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
-            echo "Creating new Lambda function..."
-            aws lambda create-function \
-              --function-name $FUNCTION_NAME \
-              --package-type Image \
-              --code ImageUri=$IMAGE_URI \
-              --role ${{ env.LAMBDA_ROLE_ARN }} \
-              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
-              --region us-east-1
-          else
-            echo "Updating existing Lambda function..."
-            aws lambda update-function-code \
-              --function-name $FUNCTION_NAME \
-              --image-uri $IMAGE_URI \
-              --region us-east-1
-            aws lambda update-function-configuration \
-              --function-name $FUNCTION_NAME \
-              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
-              --region us-east-1
-          fi
+      - name: Save outputs to artifacts
+        if: env.CHANGES == 'true'
+        uses: actions/upload-artifact@v2
+        with:
+          name: pulumi-outputs
+          path: outputs.json
