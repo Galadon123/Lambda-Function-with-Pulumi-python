@@ -9,7 +9,7 @@ vpc = aws.ec2.Vpc("my-vpc",
 # Create a private subnet
 private_subnet = aws.ec2.Subnet("private-subnet",
                                 vpc_id=vpc.id,
-                                cidr_block="10.1.5.0/24",
+                                cidr_block="10.0.1.0/24",
                                 availability_zone="us-east-1a",
                                 tags={"Name": "private-subnet"})
 
