@@ -20,6 +20,9 @@ jobs:
           name: pulumi-outputs
           path: ./outputs
 
+      - name: Debugging: Check downloaded artifact
+        run: ls -la ./outputs
+
       - name: Parse Pulumi outputs
         id: parse_outputs
         run: |

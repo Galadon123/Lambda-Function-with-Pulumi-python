@@ -62,6 +62,10 @@ jobs:
         if: env.CHANGES == 'true'
         run: cat outputs.json
 
+      - name: Debugging: Check existence of outputs.json
+        if: env.CHANGES == 'true'
+        run: ls -la
+
       - name: Save outputs to artifacts
         if: env.CHANGES == 'true'
         uses: actions/upload-artifact@v2
