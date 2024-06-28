@@ -37,14 +37,14 @@ jobs:
         run: pulumi login
 
       - name: Pulumi stack select
-        run: pulumi stack select dev
+        run: pulumi stack select dev --cwd infra
 
       - name: Pulumi up
-        run: pulumi up --yes
+        run: pulumi up --yes --cwd infra
 
       - name: Export Pulumi outputs
         run: |
-          pulumi stack output --json > outputs.json
+          pulumi stack output --json --cwd infra > outputs.json
 
       - name: Save outputs to artifacts
         uses: actions/upload-artifact@v2
