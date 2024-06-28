@@ -1,4 +1,4 @@
-name: Lambda-function
+name: infra
 runtime:
   name: python
   options:
