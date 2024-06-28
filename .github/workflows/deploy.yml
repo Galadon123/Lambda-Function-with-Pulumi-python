@@ -14,27 +14,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download Pulumi outputs
-        uses: actions/download-artifact@v2
-        with:
-          name: pulumi-outputs
-          path: ./outputs
+      # - name: Download Pulumi outputs
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: pulumi-outputs
+      #     path: ./outputs
 
-      - name: Check downloaded artifact
-        run: |
-          echo "Checking if pulumi-outputs is downloaded"
-          ls -la ./outputs
+      # - name: Check downloaded artifact
+      #   run: |
+      #     echo "Checking if pulumi-outputs is downloaded"
+      #     ls -la ./outputs
 
-      - name: Parse Pulumi outputs
-        id: parse_outputs
-        run: |
-          cat ./outputs/outputs.json
-          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs/outputs.json)
-          ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs/outputs.json)
-          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs/outputs.json)
-          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
+      # - name: Parse Pulumi outputs
+      #   id: parse_outputs
+      #   run: |
+      #     cat ./outputs/outputs.json
+      #     ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs/outputs.json)
+      #     ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs/outputs.json)
+      #     LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs/outputs.json)
+      #     echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
+      #     echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+      #     echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -58,8 +58,8 @@ jobs:
 
       - name: Build and push Docker image
         env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: my-lambda-function-1bf1a0a
+          ECR_REPOSITORY: 637423272041.dkr.ecr.us-east-1.amazonaws.com/my-lambda-function-1bf1a0a
           IMAGE_TAG: latest
         run: |
           cd deploy-in-lambda
@@ -71,10 +71,10 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: my-lambda-function-1bf1a0a
+          ECR_REPOSITORY: 637423272041.dkr.ecr.us-east-1.amazonaws.com/my-lambda-function-1bf1a0a
           IMAGE_TAG: latest
-          LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
+          LAMBDA_ROLE_ARN: arn:aws:iam::637423272041:role/lambda-role-6b34316
         run: |
           FUNCTION_NAME=my-lambda-function
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
