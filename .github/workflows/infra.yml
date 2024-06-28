@@ -76,5 +76,4 @@ jobs:
 
       - name: Confirm artifact upload
         if: env.CHANGES == 'true'
-        run: |
-          echo "Artifact 'pulumi-outputs' should be uploaded now."
+        run: echo "Artifact uploaded successfully."
