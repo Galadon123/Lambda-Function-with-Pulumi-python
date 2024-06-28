@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install pulumi pulumi-aws
+          pip install pulumi pulumi-aws jq
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -44,7 +44,7 @@ jobs:
         run: |
           pulumi up --yes --cwd infra -s dev --json > result.json
           cat result.json
-          
+
       - name: Extract Pulumi outputs
         id: extract_outputs
         run: |
@@ -54,6 +54,9 @@ jobs:
           echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
+          echo "Extracted ECR_REGISTRY: $ECR_REGISTRY"
+          echo "Extracted ECR_REPOSITORY: $ECR_REPOSITORY"
+          echo "Extracted LAMBDA_ROLE_ARN: $LAMBDA_ROLE_ARN"
 
       - name: Install AWS CLI
         run: |
@@ -63,12 +66,15 @@ jobs:
 
       - name: Login to AWS ECR
         run: |
+          echo "Logging into AWS ECR with registry: ${{ env.ECR_REGISTRY }}"
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
 
       - name: Build and push Docker image
         run: |
           cd deploy-in-lambda
+          echo "Building Docker image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
           docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          echo "Pushing Docker image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
       - name: Create or update Lambda function
