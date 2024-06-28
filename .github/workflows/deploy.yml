@@ -20,7 +20,7 @@ jobs:
           name: pulumi-outputs
           path: ./outputs
 
-      - name: Debug: Check downloaded artifact
+      - name: Check downloaded artifact
         run: |
           echo "Checking if pulumi-outputs is downloaded"
           ls -la ./outputs

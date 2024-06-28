@@ -63,7 +63,9 @@ jobs:
 
       - name: Check existence of outputs.json
         if: env.CHANGES == 'true'
-        run: ls -la
+        run: |
+          echo "Checking if outputs.json exists"
+          ls -la outputs.json
 
       - name: Save outputs to artifacts
         if: env.CHANGES == 'true'
@@ -71,3 +73,8 @@ jobs:
         with:
           name: pulumi-outputs
           path: outputs.json
+
+      - name: Confirm artifact upload
+        if: env.CHANGES == 'true'
+        run: |
+          echo "Artifact 'pulumi-outputs' should be uploaded now."
