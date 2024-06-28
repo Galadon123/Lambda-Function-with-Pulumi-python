@@ -50,7 +50,9 @@ lambda_policy = aws.iam.RolePolicy("lambda-policy",
                                            resources=["*"],
                                            effect="Allow",
                                        )
-                                   ]).json)
+                                   ]).json,
+                                   opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
+
 
 # Create a security group for Lambda
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
