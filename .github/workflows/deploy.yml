@@ -17,22 +17,22 @@ jobs:
       - name: Restore Pulumi outputs
         uses: actions/cache@v2
         with:
-          path: outputs.json
+          path: ./outputs
           key: pulumi-outputs-${{ github.sha }}
           restore-keys: pulumi-outputs-
 
       - name: Check restored artifact
         run: |
           echo "Checking if pulumi-outputs is restored"
-          ls -la outputs.json
+          ls -la ./outputs
 
       - name: Parse Pulumi outputs
         id: parse_outputs
         run: |
-          cat outputs.json
-          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' outputs.json)
-          ECR_REGISTRY=$(jq -r '.ecr_registry' outputs.json)
-          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' outputs.json)
+          cat ./outputs/outputs.json
+          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs/outputs.json)
+          ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs/outputs.json)
+          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs/outputs.json)
           echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
@@ -91,7 +91,4 @@ jobs:
           else
             echo "Updating existing Lambda function..."
             aws lambda update-function-code \
-              --function-name $FUNCTION_NAME \
-              --image-uri $IMAGE_URI \
-              --region $AWS_REGION
-          fi
+          
