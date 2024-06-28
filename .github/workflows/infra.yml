@@ -39,36 +39,22 @@ jobs:
       - name: Pulumi stack select
         run: pulumi stack select dev --cwd infra
 
-      - name: Pulumi preview
-        id: pulumi-preview
-        run: pulumi preview --json --cwd infra > preview.json
-
-      - name: Check for changes
-        id: check_changes
-        run: |
-          echo "CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)" >> $GITHUB_ENV
-
       - name: Pulumi up
-        if: env.CHANGES == 'true'
         run: pulumi up --yes --cwd infra
 
       - name: Export Pulumi outputs
-        if: env.CHANGES == 'true'
         run: |
           pulumi stack output --json --cwd infra > outputs.json
 
       - name: Verify Pulumi outputs
-        if: env.CHANGES == 'true'
         run: cat outputs.json
 
       - name: Check existence of outputs.json
-        if: env.CHANGES == 'true'
         run: |
           echo "Checking if outputs.json exists"
           ls -la outputs.json
 
       - name: Save outputs to artifacts
-        if: env.CHANGES == 'true'
         uses: actions/upload-artifact@v2
         with:
           name: pulumi-outputs
