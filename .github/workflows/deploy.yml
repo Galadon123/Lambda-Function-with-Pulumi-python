@@ -20,7 +20,7 @@ jobs:
           name: pulumi-outputs
           path: ./outputs
 
-      - name: Debug: Check downloaded artifact
+      - name: Check downloaded artifact
         run: |
           echo "Checking if pulumi-outputs is downloaded"
           ls -la ./outputs
@@ -78,22 +78,4 @@ jobs:
           SG_CONFIG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=lambda-security-group" --query "SecurityGroups[0].GroupId" --region $AWS_REGION --output text)
           EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
           if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
-            echo "Creating new Lambda function..."
-            aws lambda create-function \
-              --function-name $FUNCTION_NAME \
-              --package-type Image \
-              --code ImageUri=$IMAGE_URI \
-              --role $LAMBDA_ROLE_ARN \
-              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
-              --region $AWS_REGION
-          else
-            echo "Updating existing Lambda function..."
-            aws lambda update-function-code \
-              --function-name $FUNCTION_NAME \
-              --image-uri $IMAGE_URI \
-              --region $AWS_REGION
-            aws lambda update-function-configuration \
-              --function-name $FUNCTION_NAME \
-              --vpc-config SubnetIds=$VPC_CONFIG,SecurityGroupIds=$SG_CONFIG \
-              --region $AWS_REGION
-          fi
+            echo "Creating new Lambda
