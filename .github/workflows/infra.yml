@@ -46,8 +46,7 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)
-          echo "CHANGES=$CHANGES" >> $GITHUB_ENV
+          echo "CHANGES=$(jq 'select(.changeSummary.create or .changeSummary.update or .changeSummary.replace or .changeSummary.delete) | length > 0' preview.json)" >> $GITHUB_ENV
 
       - name: Pulumi up
         if: env.CHANGES == 'true'
