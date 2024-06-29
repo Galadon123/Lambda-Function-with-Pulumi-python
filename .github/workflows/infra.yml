@@ -42,20 +42,16 @@ jobs:
       - name: Pulumi up
         run: pulumi up --yes --cwd infra
 
-      - name: Export Pulumi outputs
+      - name: Export Pulumi outputs to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+          S3_BUCKET_NAME: lambda-function-bucket-poridhi
+          S3_FILE_NAME: pulumi-outputs.json
         run: |
           pulumi stack output --json --cwd infra > outputs.json
+          aws s3 cp outputs.json s3://$S3_BUCKET_NAME/$S3_FILE_NAME
 
-      - name: Verify Pulumi outputs
-        run: cat outputs.json
-
-      - name: Check existence of outputs.json
-        run: |
-          echo "Checking if outputs.json exists"
-          ls -la outputs.json
-
-      - name: Save outputs to artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: pulumi-outputs
-          path: outputs.json
+      - name: Clean up outputs.json
+        run: rm outputs.json
