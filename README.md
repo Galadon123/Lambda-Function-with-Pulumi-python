@@ -55,12 +55,6 @@ project-root/
     source venv/bin/activate
     pip install pulumi pulumi-aws
     ```
-
-6. **Run Pulumi**:
-    ```sh
-    pulumi up
-    ```
-
 ## Locally Set Up Node.js App
 
 1. **Initialize Node.js Project**:
@@ -128,7 +122,7 @@ CMD ["index.handler"]
     - Navigate to `Settings` > `Access Tokens`.
     - Click `Create Token`, give it a name, and copy the token.
 
-    ![](./image/l-2.png)
+    ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-2.png)
 
 ## Create a GitHub Repo and Set Up Secrets
 
@@ -142,7 +136,7 @@ CMD ["index.handler"]
         - `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key.
         - `PULUMI_ACCESS_TOKEN`: Your Pulumi access token.
 
-    ![](./image/l-3.png)
+    ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-3.png)
 
 ## Create S3 Bucket and Set Up Policies
 
@@ -162,25 +156,25 @@ CMD ["index.handler"]
 2. **Create a New Bucket**
    - Click on the "Create bucket" button.
    
-   ![Create Bucket](./image/l-4.png)
+   ![Create Bucket](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-4.png)
 
 3. **Configure the Bucket**
    - Enter the bucket name (e.g., `lambda-function-bucket-poridhi`).
    - Select the appropriate region (e.g., `US East (N. Virginia) us-east-1`).
    - Choose "General purpose" as the bucket type.
    
-   ![Configure Bucket](./image/l-5.png)
+   ![Configure Bucket](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-5.png)
 
 4. **Set Object Ownership and Public Access**
    - Set Object Ownership to "Bucket owner enforced".
    - Uncheck "Block all public access" to allow public access.
    
-   ![Public Access](./image/l-6.png)
+   ![Public Access](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-6.png)
 
 5. **Enable Bucket Versioning**
    - Enable bucket versioning for better data management.
    
-   ![Bucket Versioning](./image/l-7.png)
+   ![Bucket Versioning](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-7.png)
 
 6. **Create the Bucket**
    - Click on "Create bucket" to finalize the creation.
@@ -195,19 +189,19 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
    - Select "Roles" from the left-hand menu.
    - Click on the "Create role" button.
 
-   ![Create Role](./image/l-9.png)
+   ![Create Role](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-9.png)
 
 2. **Select Trusted Entity Type**
    - Choose "AWS service" as the trusted entity type.
    - In the "Use case" dropdown, select "Lambda".
    - Click "Next: Permissions".
 
-   ![Select Trusted Entity](./image/l-10.png)
+   ![Select Trusted Entity](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-10.png)
 
 3. **Attach Inline Policy**
    - In the "Permissions" section, click on the "Create inline policy" button.
 
-   ![Create Inline Policy](./image/l-11.png)
+   ![Create Inline Policy](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-11.png)
 
 4. **Specify Permissions using JSON**
    - Switch to the "JSON" tab.
@@ -227,7 +221,7 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
      ```
    - Click "Review policy".
 
-   ![Specify Permissions](./image/l-12.png)
+   ![Specify Permissions](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-12.png)
 
 5. **Review and Create Policy**
    - Give the policy a name (e.g., `PublicAccessToLambdaBucket`).
@@ -439,8 +433,8 @@ jobs:
 - Observe the workflows and ensure they run without errors.
 - If errors occur, click on the failed job to view the logs and debug accordingly.
 
-![](./image/l-w-1.png)
-![](./image/l-w-2.png)
+![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-w-1.png)
+![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-w-2.png)
 
 ## Create an API Gateway (HTTP) with AWS Lambda Function
 
@@ -459,9 +453,11 @@ This documentation provides a detailed guide on setting up an automated workflow
 ## Using the API
 
 - Use the API Gateway's invoke URL to test your Lambda function.
+
+![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-13.png)
 - For example, if your API Gateway's invoke URL is `https://api-id.execute-api.us-east-1.amazonaws.com`, you can test it using curl or Postman:
     ```sh
     curl https://api-id.execute-api.us-east-1.amazonaws.com
     ```
-![](./image/l-1.png)
+![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-1.png)
 By following these steps, you can automate the deployment of a Lambda function, ensuring a consistent and efficient workflow from code changes to deployment.
