@@ -28,7 +28,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          aws s3 cp s3://your-s3-bucket-name/outputs.json ./outputs.json
+          aws s3 cp s3://lambda-function-bucket-poridhi/pulumi-outputs.json ./outputs.json
 
       # Parse Pulumi outputs and set environment variables
       - name: Parse Pulumi outputs
