@@ -23,38 +23,230 @@ project-root/
 │       ├── infra.yml
 │       └── deploy.yml       
 ```
+Sure, here's the detailed guide on setting up Pulumi for the `infra` directory with explanations for each section of the infrastructure code:
 
-## Locally Set Up Pulumi for the `infra` Directory
+### Locally Set Up Pulumi for the `infra` Directory
 
-1. **Install Pulumi**:
-    ```sh
-    curl -fsSL https://get.pulumi.com | sh
-    ```
+#### Step 1: Install Pulumi
 
-2. **Log in to Pulumi**:
-    ```sh
-    pulumi login
-    ```
+```sh
+curl -fsSL https://get.pulumi.com | sh
+```
 
-3. **Initialize Pulumi Project**:
-    ```sh
-    cd infra
-    pulumi new aws-python
-    ```
+This command installs Pulumi on your local machine.
 
-4. **Configure AWS Credentials**:
-    Ensure that your AWS credentials are set up in your environment:
-    ```sh
-    export AWS_ACCESS_KEY_ID=your_access_key_id
-    export AWS_SECRET_ACCESS_KEY=your_secret_access_key
-    ```
+#### Step 2: Log in to Pulumi
 
-5. **Install Python Dependencies**:
-    ```sh
-    python -m venv venv
-    source venv/bin/activate
-    pip install pulumi pulumi-aws
-    ```
+```sh
+pulumi login
+```
+
+This command logs you into your Pulumi account, enabling you to manage your infrastructure as code.
+
+#### Step 3: Initialize Pulumi Project
+
+```sh
+cd infra
+pulumi new aws-python
+```
+
+This command initializes a new Pulumi project using the AWS Python template in the `infra` directory.
+
+#### Step 4: Configure AWS Credentials
+
+Ensure that your AWS credentials are set up in your environment:
+
+```sh
+export AWS_ACCESS_KEY_ID=your_access_key_id
+export AWS_SECRET_ACCESS_KEY=your_secret_access_key
+```
+
+This step ensures that Pulumi can authenticate with AWS to create and manage resources.
+
+#### Step 5: Install Python Dependencies
+
+```sh
+python -m venv venv
+source venv/bin/activate
+pip install pulumi pulumi-aws
+```
+
+These commands create a virtual environment, activate it, and install the necessary Pulumi packages.
+
+### Infrastructure Code Breakdown
+
+#### `infra/__init__.py`
+
+Leave this file empty. It's used to mark the directory as a Python package.
+
+```python
+# infra/__init__.py
+# This file is intentionally left empty to mark the directory as a Python package.
+```
+
+#### `infra/__main__.py`
+
+This is the main entry point for Pulumi to execute. It imports and initializes the infrastructure components.
+
+```python
+from vpc import VPC
+from subnet import Subnet
+from ecr_repository import ECRRepository
+from lambda_role import LambdaRole
+from security_group import SecurityGroup
+
+# Create the resources using the classes
+vpc = VPC("my-vpc", "10.0.0.0/16")
+private_subnet = Subnet("private-subnet", vpc.vpc.id, "10.0.1.0/24", "us-east-1a")
+ecr_repo = ECRRepository("my-lambda-function")
+lambda_role = LambdaRole("lambda-role")
+lambda_security_group = SecurityGroup("lambda-security-group", vpc.vpc.id)
+```
+
+#### `infra/vpc.py`
+
+This file defines the VPC class to create a Virtual Private Cloud (VPC) in AWS.
+
+```python
+import pulumi
+import pulumi_aws as aws
+
+class VPC:
+    def __init__(self, name: str, cidr_block: str):
+        self.vpc = aws.ec2.Vpc(name,
+                               cidr_block=cidr_block,
+                               tags={"Name": name})
+        pulumi.export("vpc_id", self.vpc.id)
+```
+
+**Explanation**: This class initializes a new VPC with the specified CIDR block and exports its ID.
+
+#### `infra/subnet.py`
+
+This file defines the Subnet class to create a subnet within the VPC.
+
+```python
+import pulumi
+import pulumi_aws as aws
+
+class Subnet:
+    def __init__(self, name: str, vpc_id: pulumi.Output[str], cidr_block: str, availability_zone: str):
+        self.subnet = aws.ec2.Subnet(name,
+                                     vpc_id=vpc_id,
+                                     cidr_block=cidr_block,
+                                     availability_zone=availability_zone,
+                                     tags={"Name": name})
+        pulumi.export("private_subnet_id", self.subnet.id)
+```
+
+**Explanation**: This class initializes a new private subnet within the specified VPC and exports its ID.
+
+#### `infra/ecr_repository.py`
+
+This file defines the ECRRepository class to create an Elastic Container Registry (ECR) repository in AWS.
+
+```python
+import pulumi
+import pulumi_aws as aws
+
+class ECRRepository:
+    def __init__(self, name: str):
+        self.repository = aws.ecr.Repository(name,
+                                             image_scanning_configuration={"scanOnPush": True},
+                                             tags={"Name": name})
+        pulumi.export("ecr_repo_url", self.repository.repository_url)
+        pulumi.export("ecr_registry", self.repository.registry_id)
+```
+
+**Explanation**: This class initializes a new ECR repository for storing Docker images and exports its URL and registry ID.
+
+#### `infra/lambda_role.py`
+
+This file defines the LambdaRole class to create an IAM role for the Lambda function.
+
+```python
+import pulumi
+import pulumi_aws as aws
+
+class LambdaRole:
+    def __init__(self, name: str):
+        self.role = aws.iam.Role(name,
+                                 assume_role_policy="""{
+                                     "Version": "2012-10-17",
+                                     "Statement": [
+                                         {
+                                             "Action": "sts:AssumeRole",
+                                             "Principal": {
+                                                 "Service": "lambda.amazonaws.com"
+                                             },
+                                             "Effect": "Allow",
+                                             "Sid": ""
+                                         }
+                                     ]
+                                 }""")
+        self.policy = aws.iam.RolePolicy(f"{name}-policy",
+                                         role=self.role.id,
+                                         policy="""{
+                                             "Version": "2012-10-17",
+                                             "Statement": [
+                                                 {
+                                                     "Effect": "Allow",
+                                                     "Action": [
+                                                         "logs:CreateLogGroup",
+                                                         "logs:CreateLogStream",
+                                                         "logs:PutLogEvents"
+                                                     ],
+                                                     "Resource": "arn:aws:logs:*:*:*"
+                                                 },
+                                                 {
+                                                     "Effect": "Allow",
+                                                     "Action": [
+                                                         "ecr:GetDownloadUrlForLayer",
+                                                         "ecr:BatchGetImage",
+                                                         "ecr:BatchCheckLayerAvailability"
+                                                     ],
+                                                     "Resource": "*"
+                                                 },
+                                                 {
+                                                     "Effect": "Allow",
+                                                     "Action": [
+                                                         "ec2:CreateNetworkInterface",
+                                                         "ec2:DescribeNetworkInterfaces",
+                                                         "ec2:DeleteNetworkInterface"
+                                                     ],
+                                                     "Resource": "*"
+                                                 }
+                                             ]
+                                         }""")
+        pulumi.export("lambda_role_arn", self.role.arn)
+```
+
+**Explanation**: This class creates an IAM role with the necessary policies for the Lambda function to access logs, ECR, and network interfaces, and exports the role ARN.
+
+#### `infra/security_group.py`
+
+This file defines the SecurityGroup class to create a security group for the Lambda function.
+
+```python
+import pulumi
+import pulumi_aws as aws
+
+class SecurityGroup:
+    def __init__(self, name: str, vpc_id: pulumi.Output[str]):
+        self.security_group = aws.ec2.SecurityGroup(name,
+                                                    vpc_id=vpc_id,
+                                                    egress=[{
+                                                        "protocol": "-1",
+                                                        "from_port": 0,
+                                                        "to_port": 0,
+                                                        "cidr_blocks": ["0.0.0.0/0"],
+                                                    }],
+                                                    tags={"Name": name})
+        pulumi.export("lambda_security_group_id", self.security_group.id)
+```
+
+**Explanation**: This class initializes a new security group within the specified VPC with unrestricted outbound access, and exports its ID.
+
 ## Locally Set Up Node.js App
 
 1. **Initialize Node.js Project**:
