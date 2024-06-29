@@ -23,7 +23,6 @@ project-root/
 │       ├── infra.yml
 │       └── deploy.yml       
 ```
-Sure, here's the detailed guide on setting up Pulumi for the `infra` directory with explanations for each section of the infrastructure code:
 
 ### Locally Set Up Pulumi for the `infra` Directory
 
