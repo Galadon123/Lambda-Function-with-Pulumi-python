@@ -463,5 +463,5 @@ This documentation provides a detailed guide on setting up an automated workflow
     ```sh
     curl https://api-id.execute-api.us-east-1.amazonaws.com
     ```
-
+![](./image/l-1.png)
 By following these steps, you can automate the deployment of a Lambda function, ensuring a consistent and efficient workflow from code changes to deployment.
