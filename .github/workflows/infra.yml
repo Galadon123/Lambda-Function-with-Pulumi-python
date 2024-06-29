@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'infra/**'  # Only run if files in the infra directory are changed
+      - 'infra/**'
 
 jobs:
   deploy:
