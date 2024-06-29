@@ -24,9 +24,6 @@ jobs:
 
       # Download Pulumi outputs from S3 bucket
       - name: Download Pulumi outputs from S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           aws s3 cp s3://lambda-function-bucket-poridhi/pulumi-outputs.json ./outputs.json
 
@@ -35,49 +32,50 @@ jobs:
         id: parse_outputs
         run: |
           cat ./outputs.json
-          ECR_REPOSITORY=$(jq -r '.ecr_repo_url' ./outputs.json)
+          ECR_REPO_URL=$(jq -r '.ecr_repo_url' ./outputs.json)
           ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs.json)
           LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs.json)
-          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
+          echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
-      # Additional steps to deploy Lambda function using parsed outputs
+      # Install AWS CLI
       - name: Install AWS CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
           pip3 install awscli
 
+      # Login to AWS ECR
       - name: Login to AWS ECR
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
 
+      # Build and push Docker image
       - name: Build and push Docker image
         env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
           IMAGE_TAG: latest
         run: |
           cd deploy-in-lambda
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t $ECR_REPO_URL:$IMAGE_TAG .
+          docker push $ECR_REPO_URL:$IMAGE_TAG
 
+      # Create or update Lambda function
       - name: Create or update Lambda function
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
           IMAGE_TAG: latest
           LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
         run: |
           FUNCTION_NAME=my-lambda-function
-          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          IMAGE_URI=$ECR_REPO_URL:$IMAGE_TAG
           EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
           if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
             echo "Creating new Lambda function..."
