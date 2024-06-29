@@ -637,11 +637,7 @@ jobs:
     - Create a new integration with the Lambda function deployed by your GitHub Actions workflow.
     - Deploy the API and note the invoke URL.
 
-## Summary
-
-This documentation provides a detailed guide on setting up an automated workflow to deploy a Node.js Lambda function using Pulumi and GitHub Actions. By organizing infrastructure code in Pulumi and leveraging GitHub Actions for CI/CD, we ensure a smooth and repeatable deployment process.
-
-## Using the API
+## Test Using the API
 
 - Use the API Gateway's invoke URL to test your Lambda function.
 
@@ -652,3 +648,7 @@ This documentation provides a detailed guide on setting up an automated workflow
     ```
 ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-1.png)
 By following these steps, you can automate the deployment of a Lambda function, ensuring a consistent and efficient workflow from code changes to deployment.
+## Summary
+
+This documentation provides a detailed guide on setting up an automated workflow to deploy a Node.js Lambda function using Pulumi and GitHub Actions. By organizing infrastructure code in Pulumi and leveraging GitHub Actions for CI/CD, we ensure a smooth and repeatable deployment process.
+
