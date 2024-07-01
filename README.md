@@ -401,16 +401,15 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
    - Add the following JSON policy to allow public read access to objects in the specified S3 bucket:
      ```json
      {
-         "Version": "2012-10-17",
-         "Statement": [
-             {
-                 "Effect": "Allow",
-                 "Principal": "*",
-                 "Action": "s3:GetObject",
-                 "Resource": "arn:aws:s3:::lambda-function-bucket-poridhi/*"
-             }
-         ]
-     }
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::lambda-function-bucket-poridhi/pulumi-outputs.json"
+        }
+     ]
+    }
      ```
    - Click "Review policy".
 
