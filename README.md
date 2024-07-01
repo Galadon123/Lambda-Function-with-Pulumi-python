@@ -2,6 +2,8 @@
 
 This project demonstrates how to automate the deployment of a Lambda function using Pulumi and GitHub Actions. We will set up infrastructure with Pulumi, deploy a Node.js Lambda function, and automate the entire process using GitHub Actions.
 
+![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/Screenshot%202024-07-01%20210422.png)
+
 ## Project Directory
 
 ```
