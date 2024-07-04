@@ -12,6 +12,7 @@ igw = aws.ec2.InternetGateway("my-vpc-igw",
                               opts=pulumi.ResourceOptions(depends_on=[vpc]),
                               tags={"Name": "my-vpc-igw"})
 
+
 # Create Route Table for Public Subnet
 public_route_table = aws.ec2.RouteTable("my-vpc-public-rt",
                                         vpc_id=vpc.id,
@@ -78,14 +79,20 @@ private_subnet = aws.ec2.Subnet("private-subnet",
                                 opts=pulumi.ResourceOptions(depends_on=[vpc]),
                                 tags={"Name": "private-subnet"})
 
+                                # Create NAT Gateway in Public Subnet
+nat_gateway = aws.ec2.NatGateway("my-nat-gateway",
+                                subnet_id=public_subnet.id,
+                                allocation_id=igw.id,
+                                opts=pulumi.ResourceOptions(depends_on=[public_subnet, igw]),
+                                tags={"Name": "my-nat-gateway"})
 # Create Route Table for Private Subnet
 private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
                                          vpc_id=vpc.id,
                                          routes=[{
-                                             "cidr_block": "10.0.0.0/16",
-                                             "gateway_id": "local",
+                                             "cidr_block": "0.0.0.0/0",
+                                             "gateway_id": nat_gateway.id,
                                          }],
-                                         opts=pulumi.ResourceOptions(depends_on=[igw]),
+                                         opts=pulumi.ResourceOptions(depends_on=[nat_gateway]),
                                          tags={"Name": "my-vpc-private-rt"})
 
 # Associate Route Table with Private Subnet
@@ -132,6 +139,40 @@ lambda_role = aws.iam.Role("lambda-role",
 lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
     role=lambda_role.name,
     policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+)
+# Attach IAM Policy to Lambda Role
+lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
+    role=lambda_role.name,
+    policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+)
+
+# Create IAM Policy for Lambda Role to access S3
+lambda_policy = aws.iam.Policy("lambda-policy",
+    policy="""{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::lambda-function-bucket-poridhi",
+                    "arn:aws:s3:::lambda-function-bucket-poridhi/*"
+                ]
+            }
+        ]
+    }""",
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+)
+
+# Attach IAM Policy to Lambda Role
+lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
+    role=lambda_role.name,
+    policy_arn=lambda_policy.arn,
     opts=pulumi.ResourceOptions(depends_on=[vpc]),
 )
 # Create ECR Repository ff
