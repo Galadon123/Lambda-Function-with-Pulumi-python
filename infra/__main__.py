@@ -138,7 +138,7 @@ lambda_role = aws.iam.Role("lambda-role",
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
-# Export Output
+# Export Outputas
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("public_subnet_id", public_subnet.id)
 pulumi.export("private_subnet_id", private_subnet.id)

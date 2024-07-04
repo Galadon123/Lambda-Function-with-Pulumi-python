@@ -36,16 +36,24 @@ jobs:
       - name: Pulumi login
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-        run: pulumi login
+        run: |
+          source venv/bin/activate
+          pulumi login
 
       - name: Pulumi stack select
-        run: pulumi stack select dev7 --cwd infra
+        run: |
+          source venv/bin/activate
+          pulumi stack select dev7 --cwd infra
 
       - name: Pulumi refresh
-        run: pulumi refresh --yes --cwd infra
+        run: |
+          source venv/bin/activate
+          pulumi refresh --yes --cwd infra
 
       - name: Pulumi up
-        run: pulumi up --yes --cwd infra
+        run: |
+          source venv/bin/activate
+          pulumi up --yes --cwd infra
 
       - name: Export Pulumi outputs to S3
         env:
@@ -55,6 +63,7 @@ jobs:
           S3_BUCKET_NAME: lambda-function-bucket-poridhi
           S3_FILE_NAME: pulumi-outputs.json
         run: |
+          source venv/bin/activate
           pulumi stack output --json --cwd infra > outputs.json
           aws s3 cp outputs.json s3://$S3_BUCKET_NAME/$S3_FILE_NAME
 
