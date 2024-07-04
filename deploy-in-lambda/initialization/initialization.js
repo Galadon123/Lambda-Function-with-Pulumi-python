@@ -1,7 +1,6 @@
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-grpc');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const { trace, context } = require('@opentelemetry/api');
 const grpc = require('@grpc/grpc-js');
 const AWS = require('aws-sdk');
 
@@ -45,7 +44,6 @@ async function initializeOpenTelemetry() {
   }
 }
 
-// Initialize and fetch before handling requests
 async function initializeAndFetch() {
   try {
     await fetchCollectorUrl();

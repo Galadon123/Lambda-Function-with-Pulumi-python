@@ -10,7 +10,6 @@ const server = awsServerlessExpress.createServer(app);
 app.use(express.json());
 app.use(awsServerlessExpressMiddleware.eventContext());
 
-// Define your Express routes
 app.get('/', async (req, res) => {
   await traceFunction('GET /', async () => {
     const activeSpan = trace.getSpan(context.active());
