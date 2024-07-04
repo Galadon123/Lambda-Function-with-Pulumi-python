@@ -95,12 +95,8 @@ app.get('/slow', async (req, res) => {
 
 app.get('/error', async (req, res) => {
   await traceFunction('GET /error', async () => {
-    const currentSpan = trace.getTracer('default').startSpan('GET /error');
-    context.with(trace.setSpan(context.active(), currentSpan), async () => {
-      res.status(500).send(`This route returns an error. Trace ID: ${trace.getSpan(context.active()).spanContext().traceId}`);
-      currentSpan.setStatus({ code: trace.SpanStatusCode.ERROR });
-      currentSpan.end();
-    });
+    res.status(500).send(`This route returns an error. Trace ID: ${trace.getSpan(context.active()).spanContext().traceId}`);
+    trace.getSpan(context.active()).setStatus({ code: 2 }); // Status code 2 represents an error
   });
 });
 
@@ -112,7 +108,7 @@ async function traceFunction(name, callback) {
       await callback();
     } catch (error) {
       console.error(`Error processing ${name}:`, error);
-      currentSpan.setStatus({ code: trace.SpanStatusCode.ERROR });
+      currentSpan.setStatus({ code: 2 }); // Status code 2 represents an error
     } finally {
       currentSpan.end();
     }
