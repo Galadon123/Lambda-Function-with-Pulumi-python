@@ -3,7 +3,7 @@ FROM public.ecr.aws/lambda/nodejs:14
 
 # Copy initialization scripts
 COPY initialization.js ./initialization/
-COPY routes.js ./routes/
+COPY routes.-and-middleware.js ./routes.-and-middleware/
 
 # Copy Lambda function handler
 COPY index.js ./
