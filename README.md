@@ -58,27 +58,6 @@ pulumi new aws-python
 
 This command initializes a new Pulumi project using the AWS Python template in the `infra` directory.
 
-#### Step 4: Configure AWS Credentials
-
-Ensure that your AWS credentials are set up in your environment:
-
-```sh
-export AWS_ACCESS_KEY_ID=your_access_key_id
-export AWS_SECRET_ACCESS_KEY=your_secret_access_key
-```
-
-This step ensures that Pulumi can authenticate with AWS to create and manage resources.
-
-#### Step 5: Install Python Dependencies
-
-```sh
-python -m venv venv
-source venv/bin/activate
-pip install pulumi pulumi-aws
-```
-
-These commands create a virtual environment, activate it, and install the necessary Pulumi packages.
-
 ### Infrastructure Code Breakdown
 
 #### `infra/__main__.py`
@@ -582,9 +561,10 @@ CMD [ "index.handler" ]
 1. **Create S3 Bucket**:
     - Go to the AWS Management Console.
     - Navigate to S3 and create a new bucket. Name it `lambda-function-bucket-poridhi`.
-    - Follow the visual representation 
 
-    ### Detailed Steps for Creating an IAM Role to Allow Public Access to S3 Bucket Objects
+    ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-4.png)
+
+### Detailed Steps for Creating an IAM Role to Allow Public Access to S3 Bucket Objects
 
 #### Step 1: Create an S3 Bucket
 
@@ -746,6 +726,17 @@ jobs:
         run: rm outputs.json
 ```
 
+**Explanation**:
+
+1. **Trigger on Push to Main Branch**: Executes the workflow when code is pushed to the main branch within the `infra` directory.
+2. **Checkout Code**: Uses the `actions/checkout@v3` to pull the latest code from the repository.
+3. **Set up Python Environment**: Installs Python and sets up a virtual environment with required dependencies like `pulumi` and `pulumi-aws`.
+4. **Configure AWS Credentials**: Sets up AWS credentials using GitHub secrets to interact with AWS services.
+5. **Run Pulumi Commands**: Logs into Pulumi, selects the appropriate stack, refreshes the state, and applies the changes using Pulumi.
+6. **Export Pulumi Outputs to S3**: Exports the Pulumi stack outputs to a JSON file and uploads it to an S3 bucket for use in other workflows.
+7. **Clean Up**: Deletes the local copy of the Pulumi outputs JSON file after uploading to S3.
+
+
 ### `deploy-lambda.yml`
 
 ```yaml
@@ -855,6 +846,18 @@ jobs:
               --region $AWS_REGION
           fi
 ```
+**Explanation**:
+
+1. **Trigger on Push to Main Branch**: Executes the workflow when code is pushed to the main branch within the `deploy-in-lambda` directory.
+2. **Trigger on Pulumi Workflow Completion**: Runs this workflow after the "Pulumi Deploy" workflow completes successfully.
+3. **Checkout Code**: Uses the `actions/checkout@v3` to pull the latest code from the repository.
+4. **Ensure AWS Credentials**: Configures AWS credentials using GitHub secrets to interact with AWS services.
+5. **Download Pulumi Outputs**: Retrieves Pulumi output variables from an S3 bucket and saves them locally.
+6. **Parse Pulumi Outputs**: Extracts essential variables like ECR repository URL, registry ID, Lambda role ARN, private subnet ID, and security group ID from the Pulumi outputs.
+7. **Install AWS CLI**: Installs the AWS Command Line Interface to facilitate AWS operations.
+8. **Login to AWS ECR**: Authenticates Docker to AWS ECR using AWS CLI for image push.
+9. **Build and Push Docker Image**: Builds the Docker image from the `deploy-in-lambda` directory and pushes it to AWS ECR using Docker.
+10. **Create or Update Lambda Function**: Creates a new Lambda function or updates an existing one using the newly pushed Docker image, configuring it with the appropriate VPC, subnet, and security group settings.
 
 ## Git Push the Project
 
@@ -914,7 +917,7 @@ jobs:
    - Check the execution results, which will appear on the Lambda console.
    - Review the logs and output to verify that the Lambda function executed correctly.
 
-   ![](./image/ajke-2.png)
+   ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/ajke-2.png)
 
 This process allows you to test your Lambda function directly within the AWS Lambda console using a JSON query.
 
