@@ -1,5 +1,5 @@
-const { initializeAndFetch } = require('./initialization');
-const { app, server } = require('./routes');
+const { initializeAndFetch } = require('./initialization/initialization');
+const { app, server } = require('./routes/routes');
 
 // Initialize and fetch before handling requests
 initializeAndFetch().catch((error) => {
