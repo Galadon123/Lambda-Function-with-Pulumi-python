@@ -1,10 +1,15 @@
 # Use the official AWS Lambda node image
-FROM public.ecr.aws/lambda/nodejs:16
+FROM public.ecr.aws/lambda/nodejs:14
 
-# Copy function code
-COPY index.js package.json package-lock.json ./
+# Copy initialization scripts
+COPY initialization.js ./initialization/
+COPY routes.js ./routes/
 
-# Install production dependencies
+# Copy Lambda function handler
+COPY index.js ./
+
+# Install production dependencies (if any)
+COPY package.json package-lock.json ./
 RUN npm install --only=production
 
 # Command can be overwritten by providing a different command in the template directly.
