@@ -38,33 +38,29 @@ public_route_table_association = aws.ec2.RouteTableAssociation("public-subnet-as
                                                                opts=pulumi.ResourceOptions(depends_on=[public_route_table]))
 
 # Create Security Group for EC2 Instance
-ec2_security_group = aws.ec2.SecurityGroup("ec2-security-group",
-                                           vpc_id=vpc.id,
-                                           description="Allow SSH and HTTP traffic",
-                                           ingress=[
-                                               {
-                                                   "protocol": "ssh",
-                                                   "from_port": 22,
-                                                   "to_port": 22,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                               {
-                                                   "protocol": "tcp",
-                                                   "from_port": 80,
-                                                   "to_port": 80,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                           ],
-                                           egress=[
-                                               {
-                                                   "protocol": "-1",
-                                                   "from_port": 0,
-                                                   "to_port": 0,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                           ],
-                                           opts=pulumi.ResourceOptions(depends_on=[vpc]),
-                                           tags={"Name": "ec2-security-group"})
+ec2_security_group = aws.ec2.SecurityGroup(
+    "ec2-security-group",
+    vpc_id=vpc.id,
+    description="Allow all traffic",
+    ingress=[
+        {
+            "protocol": "-1",  # All protocols
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+    egress=[
+        {
+            "protocol": "-1",  # All protocols
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+    tags={"Name": "ec2-security-group"}
+)
 
 ec2_instance = aws.ec2.Instance("my-ec2-instance",
                                 instance_type="t2.micro",

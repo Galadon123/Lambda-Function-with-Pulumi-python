@@ -121,33 +121,29 @@ public_route_table_association = aws.ec2.RouteTableAssociation("public-subnet-as
                                                                opts=pulumi.ResourceOptions(depends_on=[public_route_table]))
 
 # Create Security Group for EC2 Instance
-ec2_security_group = aws.ec2.SecurityGroup("ec2-security-group",
-                                           vpc_id=vpc.id,
-                                           description="Allow SSH and HTTP traffic",
-                                           ingress=[
-                                               {
-                                                   "protocol": "tcp",
-                                                   "from_port": 22,
-                                                   "to_port": 22,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                               {
-                                                   "protocol": "tcp",
-                                                   "from_port": 80,
-                                                   "to_port": 80,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                           ],
-                                           egress=[
-                                               {
-                                                   "protocol": "-1",
-                                                   "from_port": 0,
-                                                   "to_port": 0,
-                                                   "cidr_blocks": ["0.0.0.0/0"],
-                                               },
-                                           ],
-                                           opts=pulumi.ResourceOptions(depends_on=[vpc]),
-                                           tags={"Name": "ec2-security-group"})
+ec2_security_group = aws.ec2.SecurityGroup(
+    "ec2-security-group",
+    vpc_id=vpc.id,
+    description="Allow all traffic",
+    ingress=[
+        {
+            "protocol": "-1",  # All protocols
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+    egress=[
+        {
+            "protocol": "-1",  # All protocols
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+    tags={"Name": "ec2-security-group"}
+)
 
 ec2_instance = aws.ec2.Instance("my-ec2-instance",
                                 instance_type="t2.micro",
@@ -221,7 +217,7 @@ lambda_role = aws.iam.Role("lambda-role",
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
-# Export Outputs
+# Export Outputas
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("public_subnet_id", public_subnet.id)
 pulumi.export("private_subnet_id", private_subnet.id)
@@ -258,23 +254,29 @@ pulumi.export("ec2_private_ip", ec2_instance.private_ip)
     ```
 
 3. **Create `package.json`**:
-    ```json
-    {
-      "name": "lambda-function",
-      "version": "1.0.0",
-      "description": "",
-      "main": "index.js",
-      "dependencies": {
-        "aws-sdk": "^2.1000.0"
-      },
-      "devDependencies": {},
-      "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-      },
-      "author": "",
-      "license": "ISC"
-    }
-    ```
+```json
+{
+  "name": "lambda-function",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.8.12",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.47.1",
+    "@opentelemetry/exporter-otlp-grpc": "^0.26.0",
+    "@opentelemetry/sdk-node": "^0.52.1",
+    "aws-sdk": "^2.1000.0",
+    "aws-serverless-express": "^3.4.0",
+    "express": "^4.19.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+```
 
 4. **Install Dependencies**:
     ```sh
@@ -284,17 +286,17 @@ pulumi.export("ec2_private_ip", ec2_instance.private_ip)
 ## Dockerfile
 
 ```dockerfile
-# Use the official Node.js image
-FROM public.ecr.aws/lambda/nodejs:20
+# Use the official AWS Lambda node image
+FROM public.ecr.aws/lambda/nodejs:16
 
-# Copy function code and dependencies
-COPY index.js package*.json ./
+# Copy function code
+COPY index.js package.json package-lock.json ./
 
-# Install dependencies
-RUN npm install
+# Install production dependencies
+RUN npm install --only=production
 
-# Command to run the Lambda function
-CMD ["index.handler"]
+# Command can be overwritten by providing a different command in the template directly.
+CMD [ "index.handler" ]
 ```
 
 ## Create a Token for Login to Pulumi
@@ -347,12 +349,6 @@ CMD ["index.handler"]
    
    ![Configure Bucket](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-5.png)
 
-4. **Set Object Ownership and Public Access**
-   - Set Object Ownership to "Bucket owner enforced".
-   - Uncheck "Block all public access" to allow public access.
-   
-   ![Public Access](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-6.png)
-
 5. **Enable Bucket Versioning**
    - Enable bucket versioning for better data management.
    
@@ -389,7 +385,7 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
    - Switch to the "JSON" tab.
    - Add the following JSON policy to allow public read access to objects in the specified S3 bucket:
 ```json
-     {
+    {
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -462,13 +458,24 @@ jobs:
       - name: Pulumi login
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-        run: pulumi login
+        run: |
+          source venv/bin/activate
+          pulumi login
 
       - name: Pulumi stack select
-        run: pulumi stack select dev7 --cwd infra
+        run: |
+          source venv/bin/activate
+          pulumi stack select dev-project-lambda --cwd infra
+
+      - name: Pulumi refresh
+        run: |
+          source venv/bin/activate
+          pulumi refresh --yes --cwd infra
 
       - name: Pulumi up
-        run: pulumi up --yes --cwd infra
+        run: |
+          source venv/bin/activate
+          pulumi up --yes --cwd infra
 
       - name: Export Pulumi outputs to S3
         env:
@@ -478,6 +485,7 @@ jobs:
           S3_BUCKET_NAME: lambda-function-bucket-poridhi
           S3_FILE_NAME: pulumi-outputs.json
         run: |
+          source venv/bin/activate
           pulumi stack output --json --cwd infra > outputs.json
           aws s3 cp outputs.json s3://$S3_BUCKET_NAME/$S3_FILE_NAME
 
@@ -531,8 +539,12 @@ jobs:
           ECR_REPO_URL=$(jq -r '.ecr_repo_url' ./outputs.json)
           ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs.json)
           LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs.json)
+          PRIVATE_SUBNET_ID=$(jq -r '.private_subnet_id' ./outputs.json)
+          SECURITY_GROUP_ID=$(jq -r '.lambda_security_group_id' ./outputs.json)
           echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "PRIVATE_SUBNET_ID=$PRIVATE_SUBNET_ID" >> $GITHUB_ENV
+          echo "SECURITY_GROUP_ID=$SECURITY_GROUP_ID" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
       # Install AWS CLI
@@ -555,8 +567,6 @@ jobs:
         env:
           ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
           IMAGE_TAG: latest
-
-
         run: |
           cd deploy-in-lambda
           docker build -t $ECR_REPO_URL:$IMAGE_TAG .
@@ -582,6 +592,7 @@ jobs:
               --package-type Image \
               --code ImageUri=$IMAGE_URI \
               --role $LAMBDA_ROLE_ARN \
+              --vpc-config SubnetIds=$PRIVATE_SUBNET_ID,SecurityGroupIds=$SECURITY_GROUP_ID \
               --region $AWS_REGION
           else
             echo "Updating existing Lambda function..."
