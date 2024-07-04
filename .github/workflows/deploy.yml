@@ -41,8 +41,12 @@ jobs:
           ECR_REPO_URL=$(jq -r '.ecr_repo_url' ./outputs.json)
           ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs.json)
           LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs.json)
+          PRIVATE_SUBNET_ID=$(jq -r '.private_subnet_id' ./outputs.json)
+          SECURITY_GROUP_ID=$(jq -r '.lambda_security_group_id' ./outputs.json)
           echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "PRIVATE_SUBNET_ID=$PRIVATE_SUBNET_ID" >> $GITHUB_ENV
+          echo "SECURITY_GROUP_ID=$SECURITY_GROUP_ID" >> $GITHUB_ENV
           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
       # Install AWS CLI
@@ -90,6 +94,7 @@ jobs:
               --package-type Image \
               --code ImageUri=$IMAGE_URI \
               --role $LAMBDA_ROLE_ARN \
+              --vpc-config SubnetIds=$PRIVATE_SUBNET_ID,SecurityGroupIds=$SECURITY_GROUP_ID \
               --region $AWS_REGION
           else
             echo "Updating existing Lambda function..."

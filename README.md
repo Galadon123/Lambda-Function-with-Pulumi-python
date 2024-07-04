@@ -76,174 +76,163 @@ These commands create a virtual environment, activate it, and install the necess
 
 ### Infrastructure Code Breakdown
 
-#### `infra/__init__.py`
-
-Leave this file empty. It's used to mark the directory as a Python package.
-
-```python
-# infra/__init__.py
-# This file is intentionally left empty to mark the directory as a Python package.
-```
-
 #### `infra/__main__.py`
 
 This is the main entry point for Pulumi to execute. It imports and initializes the infrastructure components.
 
 ```python
-from vpc import VPC
-from subnet import Subnet
-from ecr_repository import ECRRepository
-from lambda_role import LambdaRole
-from security_group import SecurityGroup
-
-# Create the resources using the classes
-vpc = VPC("my-vpc", "10.0.0.0/16")
-private_subnet = Subnet("private-subnet", vpc.vpc.id, "10.0.1.0/24", "us-east-1a")
-ecr_repo = ECRRepository("my-lambda-function")
-lambda_role = LambdaRole("lambda-role")
-lambda_security_group = SecurityGroup("lambda-security-group", vpc.vpc.id)
-```
-
-#### `infra/vpc.py`
-
-This file defines the VPC class to create a Virtual Private Cloud (VPC) in AWS.
-
-```python
 import pulumi
 import pulumi_aws as aws
+import json
+# Create VPC
+vpc = aws.ec2.Vpc("my-vpc",
+                  cidr_block="10.0.0.0/16",
+                  tags={"Name": "my-vpc"})
 
-class VPC:
-    def __init__(self, name: str, cidr_block: str):
-        self.vpc = aws.ec2.Vpc(name,
-                               cidr_block=cidr_block,
-                               tags={"Name": name})
-        pulumi.export("vpc_id", self.vpc.id)
-```
+# Create Internet Gateway
+igw = aws.ec2.InternetGateway("my-vpc-igw",
+                              vpc_id=vpc.id,
+                              opts=pulumi.ResourceOptions(depends_on=[vpc]),
+                              tags={"Name": "my-vpc-igw"})
 
-**Explanation**: This class initializes a new VPC with the specified CIDR block and exports its ID.
+# Create Route Table for Public Subnet
+public_route_table = aws.ec2.RouteTable("my-vpc-public-rt",
+                                        vpc_id=vpc.id,
+                                        routes=[{
+                                            "cidr_block": "0.0.0.0/0",
+                                            "gateway_id": igw.id,
+                                        }],
+                                        opts=pulumi.ResourceOptions(depends_on=[igw]),
+                                        tags={"Name": "my-vpc-public-rt"})
 
-#### `infra/subnet.py`
+# Create Public Subnet within VPC c
+public_subnet = aws.ec2.Subnet("public-subnet",
+                               vpc_id=vpc.id,
+                               cidr_block="10.0.1.0/24",
+                               availability_zone="us-east-1a",
+                               map_public_ip_on_launch=True,
+                               opts=pulumi.ResourceOptions(depends_on=[vpc]),
+                               tags={"Name": "public-subnet"})
 
-This file defines the Subnet class to create a subnet within the VPC.
+# Associate Route Table with Public Subnet
+public_route_table_association = aws.ec2.RouteTableAssociation("public-subnet-association",
+                                                               subnet_id=public_subnet.id,
+                                                               route_table_id=public_route_table.id,
+                                                               opts=pulumi.ResourceOptions(depends_on=[public_route_table]))
 
-```python
-import pulumi
-import pulumi_aws as aws
+# Create Security Group for EC2 Instance
+ec2_security_group = aws.ec2.SecurityGroup("ec2-security-group",
+                                           vpc_id=vpc.id,
+                                           description="Allow SSH and HTTP traffic",
+                                           ingress=[
+                                               {
+                                                   "protocol": "tcp",
+                                                   "from_port": 22,
+                                                   "to_port": 22,
+                                                   "cidr_blocks": ["0.0.0.0/0"],
+                                               },
+                                               {
+                                                   "protocol": "tcp",
+                                                   "from_port": 80,
+                                                   "to_port": 80,
+                                                   "cidr_blocks": ["0.0.0.0/0"],
+                                               },
+                                           ],
+                                           egress=[
+                                               {
+                                                   "protocol": "-1",
+                                                   "from_port": 0,
+                                                   "to_port": 0,
+                                                   "cidr_blocks": ["0.0.0.0/0"],
+                                               },
+                                           ],
+                                           opts=pulumi.ResourceOptions(depends_on=[vpc]),
+                                           tags={"Name": "ec2-security-group"})
 
-class Subnet:
-    def __init__(self, name: str, vpc_id: pulumi.Output[str], cidr_block: str, availability_zone: str):
-        self.subnet = aws.ec2.Subnet(name,
-                                     vpc_id=vpc_id,
-                                     cidr_block=cidr_block,
-                                     availability_zone=availability_zone,
-                                     tags={"Name": name})
-        pulumi.export("private_subnet_id", self.subnet.id)
-```
+ec2_instance = aws.ec2.Instance("my-ec2-instance",
+                                instance_type="t2.micro",
+                                vpc_security_group_ids=[ec2_security_group.id],
+                                subnet_id=public_subnet.id,
+                                ami="ami-04a81a99f5ec58529",  # Example AMI ID, replace with your desired AMIs
+                                tags={"Name": "my-ec2-instance"},
+                                opts=pulumi.ResourceOptions(depends_on=[public_subnet, ec2_security_group]))
+# Create Private Subnet within VPC
+private_subnet = aws.ec2.Subnet("private-subnet",
+                                vpc_id=vpc.id,
+                                cidr_block="10.0.2.0/24",
+                                availability_zone="us-east-1b",
+                                map_public_ip_on_launch=False,
+                                opts=pulumi.ResourceOptions(depends_on=[vpc]),
+                                tags={"Name": "private-subnet"})
 
-**Explanation**: This class initializes a new private subnet within the specified VPC and exports its ID.
+# Create Route Table for Private Subnet
+private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
+                                         vpc_id=vpc.id,
+                                         routes=[{
+                                             "cidr_block": "10.0.0.0/16",
+                                             "gateway_id": "local",
+                                         }],
+                                         opts=pulumi.ResourceOptions(depends_on=[igw]),
+                                         tags={"Name": "my-vpc-private-rt"})
 
-#### `infra/ecr_repository.py`
+# Associate Route Table with Private Subnet
+private_route_table_association = aws.ec2.RouteTableAssociation("private-subnet-association",
+                                                                subnet_id=private_subnet.id,
+                                                                route_table_id=private_route_table.id,
+                                                                opts=pulumi.ResourceOptions(depends_on=[private_route_table]))
 
-This file defines the ECRRepository class to create an Elastic Container Registry (ECR) repository in AWS.
+# Create Security Group for Lambda functions
+lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
+                                              vpc_id=vpc.id,
+                                              description="Allow all traffic",
+                                              ingress=[{
+                                                  "protocol": "-1",  # All protocols
+                                                  "from_port": 0,
+                                                  "to_port": 0,
+                                                  "cidr_blocks": ["0.0.0.0/0"],
+                                              }],
+                                              egress=[{
+                                                  "protocol": "-1",  # All protocols
+                                                  "from_port": 0,
+                                                  "to_port": 0,
+                                                  "cidr_blocks": ["0.0.0.0/0"],
+                                              }],
+                                              opts=pulumi.ResourceOptions(depends_on=[vpc]),
+                                              tags={"Name": "lambda-security-group"})
 
-```python
-import pulumi
-import pulumi_aws as aws
+# Create IAM Role for Lambda with trust policy
+lambda_role = aws.iam.Role("lambda-role",
+                           assume_role_policy="""{
+                               "Version": "2012-10-17",
+                               "Statement": [
+                                   {
+                                       "Action": "sts:AssumeRole",
+                                       "Principal": {
+                                           "Service": "lambda.amazonaws.com"
+                                       },
+                                       "Effect": "Allow",
+                                       "Sid": ""
+                                   }
+                               ]
+                           }""")
 
-class ECRRepository:
-    def __init__(self, name: str):
-        self.repository = aws.ecr.Repository(name,
-                                             image_scanning_configuration={"scanOnPush": True},
-                                             tags={"Name": name})
-        pulumi.export("ecr_repo_url", self.repository.repository_url)
-        pulumi.export("ecr_registry", self.repository.registry_id)
-```
 
-**Explanation**: This class initializes a new ECR repository for storing Docker images and exports its URL and registry ID.
+# Create ECR Repository f
+repository = aws.ecr.Repository("my-ecr-repo",
+                                 opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
-#### `infra/lambda_role.py`
-
-This file defines the LambdaRole class to create an IAM role for the Lambda function.
-
-```python
-import pulumi
-import pulumi_aws as aws
-
-class LambdaRole:
-    def __init__(self, name: str):
-        self.role = aws.iam.Role(name,
-                                 assume_role_policy="""{
-                                     "Version": "2012-10-17",
-                                     "Statement": [
-                                         {
-                                             "Action": "sts:AssumeRole",
-                                             "Principal": {
-                                                 "Service": "lambda.amazonaws.com"
-                                             },
-                                             "Effect": "Allow",
-                                             "Sid": ""
-                                         }
-                                     ]
-                                 }""")
-        self.policy = aws.iam.RolePolicy(f"{name}-policy",
-                                         role=self.role.id,
-                                         policy="""{
-                                             "Version": "2012-10-17",
-                                             "Statement": [
-                                                 {
-                                                     "Effect": "Allow",
-                                                     "Action": [
-                                                         "logs:CreateLogGroup",
-                                                         "logs:CreateLogStream",
-                                                         "logs:PutLogEvents"
-                                                     ],
-                                                     "Resource": "arn:aws:logs:*:*:*"
-                                                 },
-                                                 {
-                                                     "Effect": "Allow",
-                                                     "Action": [
-                                                         "ecr:GetDownloadUrlForLayer",
-                                                         "ecr:BatchGetImage",
-                                                         "ecr:BatchCheckLayerAvailability"
-                                                     ],
-                                                     "Resource": "*"
-                                                 },
-                                                 {
-                                                     "Effect": "Allow",
-                                                     "Action": [
-                                                         "ec2:CreateNetworkInterface",
-                                                         "ec2:DescribeNetworkInterfaces",
-                                                         "ec2:DeleteNetworkInterface"
-                                                     ],
-                                                     "Resource": "*"
-                                                 }
-                                             ]
-                                         }""")
-        pulumi.export("lambda_role_arn", self.role.arn)
-```
-
-**Explanation**: This class creates an IAM role with the necessary policies for the Lambda function to access logs, ECR, and network interfaces, and exports the role ARN.
-
-#### `infra/security_group.py`
-
-This file defines the SecurityGroup class to create a security group for the Lambda function.
-
-```python
-import pulumi
-import pulumi_aws as aws
-
-class SecurityGroup:
-    def __init__(self, name: str, vpc_id: pulumi.Output[str]):
-        self.security_group = aws.ec2.SecurityGroup(name,
-                                                    vpc_id=vpc_id,
-                                                    egress=[{
-                                                        "protocol": "-1",
-                                                        "from_port": 0,
-                                                        "to_port": 0,
-                                                        "cidr_blocks": ["0.0.0.0/0"],
-                                                    }],
-                                                    tags={"Name": name})
-        pulumi.export("lambda_security_group_id", self.security_group.id)
+# Export Outputs
+pulumi.export("vpc_id", vpc.id)
+pulumi.export("public_subnet_id", public_subnet.id)
+pulumi.export("private_subnet_id", private_subnet.id)
+pulumi.export("public_route_table_id", public_route_table.id)
+pulumi.export("private_route_table_id", private_route_table.id)
+pulumi.export("ec2_security_group_id", ec2_security_group.id)
+pulumi.export("lambda_security_group_id", lambda_security_group.id)
+pulumi.export("lambda_role_arn", lambda_role.arn)
+pulumi.export("ecr_repo_url", repository.repository_url)
+pulumi.export("ecr_registry", repository.registry_id)
+pulumi.export("ec2_private_ip", ec2_instance.private_ip)
 ```
 
 **Explanation**: This class initializes a new security group within the specified VPC with unrestricted outbound access, and exports its ID.
@@ -399,7 +388,7 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
 4. **Specify Permissions using JSON**
    - Switch to the "JSON" tab.
    - Add the following JSON policy to allow public read access to objects in the specified S3 bucket:
-     ```json
+```json
      {
     "Version": "2012-10-17",
     "Statement": [
@@ -410,7 +399,7 @@ Sure, here are the detailed steps for creating an IAM role that allows public ac
         }
      ]
     }
-     ```
+```
    - Click "Review policy".
 
    ![Specify Permissions](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-12.png)
