@@ -556,15 +556,7 @@ CMD [ "index.handler" ]
 
     ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-3.png)
 
-## Create S3 Bucket and Set Up Policies
-
-1. **Create S3 Bucket**:
-    - Go to the AWS Management Console.
-    - Navigate to S3 and create a new bucket. Name it `lambda-function-bucket-poridhi`.
-
-    ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/l-4.png)
-
-### Detailed Steps for Creating an IAM Role to Allow Public Access to S3 Bucket Objects
+### Detailed Steps for Creating an IAM Role to Allow Access to S3 Bucket Objects
 
 #### Step 1: Create an S3 Bucket
 
