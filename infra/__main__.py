@@ -43,7 +43,7 @@ ec2_security_group = aws.ec2.SecurityGroup("ec2-security-group",
                                            description="Allow SSH and HTTP traffic",
                                            ingress=[
                                                {
-                                                   "protocol": "tcp",
+                                                   "protocol": "ssh",
                                                    "from_port": 22,
                                                    "to_port": 22,
                                                    "cidr_blocks": ["0.0.0.0/0"],
