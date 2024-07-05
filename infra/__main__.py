@@ -95,7 +95,7 @@ private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
                                          opts=pulumi.ResourceOptions(depends_on=[nat_gateway]),
                                          tags={"Name": "my-vpc-private-rt"})
 
-# Associate Route Table with Private Subnet
+# Associate Route Table with Private Subnets
 private_route_table_association = aws.ec2.RouteTableAssociation("private-subnet-association",
                                                                 subnet_id=private_subnet.id,
                                                                 route_table_id=private_route_table.id,

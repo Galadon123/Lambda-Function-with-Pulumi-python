@@ -4,7 +4,7 @@ const { app, server } = require('./routes/routes');
 
 // Initialize and fetch before handling requests
 initializeAndFetch().catch((error) => {
-  console.error("Initialization failed:", error);
+  console.error("Initializations failed:", error);
   process.exit(1); // Exit Lambda function on initialization failure
 });
 
