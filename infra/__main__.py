@@ -80,10 +80,14 @@ private_subnet = aws.ec2.Subnet("private-subnet",
                                 tags={"Name": "private-subnet"})
 
                                 # Create NAT Gateway in Public Subnet
+# Allocate an Elastic IP
+eip = aws.ec2.Eip("my-eip")
+
+# Use the EIP's allocation ID for the NAT Gateway
 nat_gateway = aws.ec2.NatGateway("my-nat-gateway",
                                 subnet_id=public_subnet.id,
-                                allocation_id=igw.id,
-                                opts=pulumi.ResourceOptions(depends_on=[public_subnet, igw]),
+                                allocation_id=eip.id,  # Corrected to use EIP's ID
+                                opts=pulumi.ResourceOptions(depends_on=[public_subnet, eip]),  # Updated dependency
                                 tags={"Name": "my-nat-gateway"})
 # Create Route Table for Private Subnet
 private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
@@ -170,11 +174,11 @@ lambda_policy = aws.iam.Policy("lambda-policy",
 )
 
 # Attach IAM Policy to Lambda Role
-# lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
-#     role=lambda_role.name,
-#     policy_arn=lambda_policy.arn,
-#     opts=pulumi.ResourceOptions(depends_on=[vpc]),
-# )
+lambda_policy_attachment_2 = aws.iam.RolePolicyAttachment("lambda-policy-attachment_2",
+    role=lambda_role.name,
+    policy_arn=lambda_policy.arn,
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
+)
 # Create ECR Repository ff
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
