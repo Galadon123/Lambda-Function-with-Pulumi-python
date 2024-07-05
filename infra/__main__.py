@@ -170,11 +170,11 @@ lambda_policy = aws.iam.Policy("lambda-policy",
 )
 
 # Attach IAM Policy to Lambda Role
-lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
-    role=lambda_role.name,
-    policy_arn=lambda_policy.arn,
-    opts=pulumi.ResourceOptions(depends_on=[vpc]),
-)
+# lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
+#     role=lambda_role.name,
+#     policy_arn=lambda_policy.arn,
+#     opts=pulumi.ResourceOptions(depends_on=[vpc]),
+# )
 # Create ECR Repository ff
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
