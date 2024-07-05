@@ -95,7 +95,7 @@ private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
                                          opts=pulumi.ResourceOptions(depends_on=[nat_gateway]),
                                          tags={"Name": "my-vpc-private-rt"})
 
-# Associate Route Table with Private Subnets
+# Associate Route Table with Private Subnet
 private_route_table_association = aws.ec2.RouteTableAssociation("private-subnet-association",
                                                                 subnet_id=private_subnet.id,
                                                                 route_table_id=private_route_table.id,
@@ -136,11 +136,11 @@ lambda_role = aws.iam.Role("lambda-role",
                                ]
                            }""")
 
-lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
-    role=lambda_role.name,
-    policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
-    opts=pulumi.ResourceOptions(depends_on=[vpc]),
-)
+# lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
+#     role=lambda_role.name,
+#     policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+#     opts=pulumi.ResourceOptions(depends_on=[vpc]),
+# )
 # Attach IAM Policy to Lambda Role
 lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
     role=lambda_role.name,
