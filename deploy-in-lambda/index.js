@@ -1,14 +1,91 @@
-const awsServerlessExpress = require('aws-serverless-express');
-const { initializeAndFetch } = require('./initialization/initialization');
-const { app, server } = require('./routes/routes');
+const AWS = require('aws-sdk');
+const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-base');
+const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
+const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 
-// Initialize and fetch before handling requests
-initializeAndFetch().catch((error) => {
-  console.error("Initializations failed:", error);
-  process.exit(1); // Exit Lambda function on initialization failure
-});
+// Initialize AWS SDK (for interacting with S3)
+ const s3 = new AWS.S3();
+ const bucketName = 'lambda-function-bucket-poridhi';
+ const objectKey = 'ec2_private_ip'; // Adjust if needed
 
-exports.handler = (event, context) => {
-  console.log("Handler invoked");
-  return awsServerlessExpress.proxy(server, event, context, 'PROMISE').promise;
+//Function to retrieve EC2 private IP from S3
+const getEc2PrivateIp = async () => {
+  const params = {
+    Bucket: bucketName,
+    Key: objectKey,
+  };
+  const data = await s3.getObject(params).promise();
+  return data.Body.toString('utf-8').trim();
+};
+
+// Lambda function handler
+exports.handler = async (event) => {
+  let response;
+
+  try {
+    // Retrieve EC2 private IP dynamically from S3
+    const ec2PrivateIp = await getEc2PrivateIp();
+    
+    // Initialize OpenTelemetry provider
+    const provider = new NodeTracerProvider();
+
+    // Configure OpenTelemetry exporter with dynamic IP
+    const exporter = new CollectorTraceExporter({
+      serviceName: 'my-lambda-function',
+      url: `http://${ec2PrivateIp}:4317`,// Replace with your OTel collector URL
+    });
+
+    // Add span processor and register provider
+    provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+    provider.register();
+
+    // Start a span to trace this Lambda function invocation
+    const span = provider.tracer().startSpan('lambda-handler');
+
+    // Handle incoming HTTP requests
+    switch (event.httpMethod) {
+      case 'GET':
+        if (event.path === '/default/my-lambda-function') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('Hello from Lambda!'),
+          };
+        } else if (event.path === '/default/my-lambda-function/test1') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('This is test1 route!'),
+          };
+        } else if (event.path === '/default/my-lambda-function/test2') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('This is test2 route!'),
+          };
+        } else {
+          response = {
+            statusCode: 404,
+            body: JSON.stringify('Not Found'),
+          };
+        }
+        break;
+      default:
+        response = {
+          statusCode: 405,
+          body: JSON.stringify('Method Not Allowed'),
+        };
+    }
+
+    // End the span for this Lambda function invocation
+    span.end();
+
+    return response;
+  } catch (error) {
+    // Handle errors gracefully
+    console.error('Error:', error);
+
+    // Return an error response
+    return {
+      statusCode: 500,
+      body: JSON.stringify('Internal Server Error'),
+    };
+  }
 };

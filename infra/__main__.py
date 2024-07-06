@@ -105,7 +105,7 @@ private_route_table_association = aws.ec2.RouteTableAssociation("private-subnet-
                                                                 route_table_id=private_route_table.id,
                                                                 opts=pulumi.ResourceOptions(depends_on=[private_route_table]))
 
-# Create Security Group for Lambda functions
+# Create Security Group for Lambda function
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
                                               vpc_id=vpc.id,
                                               description="Allow all traffic",

@@ -1,24 +1,11 @@
-# Use the official AWS Lambda node image
-FROM public.ecr.aws/lambda/nodejs:14
+# Use the official AWS Lambda Node.js 14.x image
+FROM public.ecr.aws/lambda/nodejs:20
 
-# Create directories for partitioned files
-RUN mkdir -p /var/task/initialization /var/task/routes
+# Copy function code
+COPY index.js package.json package-lock.json /var/task/
 
-# Copy initialization scripts
-COPY initialization/ /var/task/initialization/
+# Install production dependencies
+RUN npm install --production
 
-# Copy route definitions
-COPY routes/ /var/task/routes/
-
-# Copy Lambda function handler
-COPY index.js /var/task/
-
-# Install production dependencies (if any)
-COPY package.json package-lock.json /var/task/
-RUN npm install --only=production --prefix /var/task
-
-# Set working directory
-WORKDIR /var/task
-
-# Command can be overwritten by providing a different command in the template directly.
+# Set the CMD to your handler (adjust if your handler file or function name is different)
 CMD [ "index.handler" ]
