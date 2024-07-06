@@ -18,7 +18,7 @@ const getEc2PrivateIp = async () => {
   return data.Body.toString('utf-8').trim();
 };
 
-// Lambda function handler
+// Lambda function handlers
 exports.handler = async (event) => {
   let response;
 

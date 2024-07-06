@@ -183,7 +183,7 @@ lambda_policy_attachment_2 = aws.iam.RolePolicyAttachment("lambda-policy-attachm
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
-# Export Outputas
+# Export Output
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("public_subnet_id", public_subnet.id)
 pulumi.export("private_subnet_id", private_subnet.id)
