@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-base');
+const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
 const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 
