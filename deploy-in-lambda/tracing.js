@@ -22,7 +22,7 @@ const initializeTracer = async () => {
     const provider = new NodeTracerProvider();
     const exporter = new CollectorTraceExporter({
       serviceName: 'my-lambda-function',
-      url: `http://${ec2PrivateIp}:4317`,
+      url: `http://34.201.69.207:4317`,
     });
     provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
     provider.register();
