@@ -1,21 +1,16 @@
 const initializeTracer = require('./tracing');
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
-const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
-const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
-
-// Initialize OpenTelemetry tracing
-initializeTracer().catch((error) => {
-  console.error('Initialization failed:', error);
-  process.exit(1); // Exit Lambda function on initialization failure
-});
 
 // Lambda function handler
 exports.handler = async (event) => {
   let response;
+  let tracer;
 
   try {
+    // Initialize OpenTelemetry tracing
+    tracer = await initializeTracer();
+
     // Start a span to trace this Lambda function invocation
-    const span = NodeTracerProvider.getTracer('default').startSpan('lambda-handler');
+    const span = tracer.startSpan('lambda-handler');
 
     // Handle incoming HTTP requests
     switch (event.httpMethod) {

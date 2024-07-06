@@ -1,3 +1,4 @@
+// tracing.js
 const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
 const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
@@ -5,7 +6,7 @@ const AWS = require('aws-sdk');
 
 // Initialize AWS SDK (for interacting with S3)
 const s3 = new AWS.S3();
-const bucketName = 'lambda-function-bucket-poridhi';
+const bucketName = 'lambda-function-poridhi-bucket';
 const objectKey = 'pulumi-outputs.json'; // Adjust if needed
 
 // Function to retrieve EC2 private IP from S3 JSON file
@@ -38,6 +39,7 @@ const initializeTracer = async () => {
     provider.register();
 
     console.log('OpenTelemetry initialized successfully.');
+    return provider.getTracer('default'); // Return the tracer instance
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
   }
