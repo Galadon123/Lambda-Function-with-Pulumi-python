@@ -179,7 +179,7 @@ lambda_policy_attachment_2 = aws.iam.RolePolicyAttachment("lambda-policy-attachm
     policy_arn=lambda_policy.arn,
     opts=pulumi.ResourceOptions(depends_on=[vpc]),
 )
-# Create ECR Repository ff
+# Create ECR Repository f
 repository = aws.ecr.Repository("my-ecr-repo",
                                  opts=pulumi.ResourceOptions(depends_on=[lambda_role]))
 
