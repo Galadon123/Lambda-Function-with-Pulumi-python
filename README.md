@@ -309,230 +309,165 @@ pulumi.export("ec2_private_ip", ec2_instance.private_ip)
 
 2. **Create `index.js`**:
 ```javascript
-   const awsServerlessExpress = require('aws-serverless-express');
-const { initializeAndFetch } = require('./initialization/initialization');
-const { app, server } = require('./routes/routes');
+const initializeTracer = require('./tracing');
+const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
+const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
+const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 
-// Initialize and fetch before handling requests
-initializeAndFetch().catch((error) => {
-  console.error("Initialization failed:", error);
+// Initialize OpenTelemetry tracing
+initializeTracer().catch((error) => {
+  console.error('Initialization failed:', error);
   process.exit(1); // Exit Lambda function on initialization failure
 });
 
-exports.handler = (event, context) => {
-  console.log("Handler invoked");
-  return awsServerlessExpress.proxy(server, event, context, 'PROMISE').promise;
-};
+// Lambda function handler
+exports.handler = async (event) => {
+  let response;
 
+  try {
+    // Start a span to trace this Lambda function invocation
+    const span = NodeTracerProvider.getTracer('default').startSpan('lambda-handler');
+
+    // Handle incoming HTTP requests
+    switch (event.httpMethod) {
+      case 'GET':
+        if (event.path === '/default/my-lambda-function') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('Hello from Lambda!'),
+          };
+        } else if (event.path === '/default/my-lambda-function/test1') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('This is test1 route!'),
+          };
+        } else if (event.path === '/default/my-lambda-function/test2') {
+          response = {
+            statusCode: 200,
+            body: JSON.stringify('This is test2 route!'),
+          };
+        } else {
+          response = {
+            statusCode: 404,
+            body: JSON.stringify('Not Found'),
+          };
+        }
+        break;
+      default:
+        response = {
+          statusCode: 405,
+          body: JSON.stringify('Method Not Allowed'),
+        };
+    }
+
+    // End the span for this Lambda function invocation
+    span.end();
+
+    return response;
+  } catch (error) {
+    // Handle errors gracefully
+    console.error('Error:', error);
+
+    // Return an error response
+    return {
+      statusCode: 500,
+      body: JSON.stringify('Internal Server Error'),
+    };
+  }
+};
 ```
-   - **Explanation**:
-     - Initializes OpenTelemetry and fetches configuration data from AWS S3 before handling any incoming requests.
-     - Sets up an Express server and defines a Lambda function handler to proxy HTTP requests.
 
 3. **Create `package.json`**:
 ```json
    {
-     "name": "lambda-function",
-     "version": "1.0.0",
-     "description": "",
-     "main": "index.js",
-     "dependencies": {
-       "@grpc/grpc-js": "^1.8.12",
-       "@opentelemetry/api": "^1.9.0",
-       "@opentelemetry/auto-instrumentations-node": "^0.47.1",
-       "@opentelemetry/exporter-otlp-grpc": "^0.26.0",
-       "@opentelemetry/sdk-node": "^0.52.1",
-       "aws-sdk": "^2.1000.0",
-       "aws-serverless-express": "^3.4.0",
-       "express": "^4.19.2"
-     },
-     "scripts": {
-       "test": "echo \"Error: no test specified\" && exit 1"
-     },
-     "author": "",
-     "license": "ISC"
-   }
-```
-   - **Explanation**:
-     - Defines project metadata and dependencies required for the Lambda function.
-     - Includes packages for AWS SDK, Express framework, and OpenTelemetry for tracing capabilities.
-
-4. **Create `initialization.js`**:
-```javascript
-   const { NodeSDK } = require('@opentelemetry/sdk-node');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-grpc');
-const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const grpc = require('@grpc/grpc-js');
-const AWS = require('aws-sdk');
-
-const S3_BUCKET_NAME = 'lambda-function-bucket-poridhi'; // Replace with your S3 bucket name
-const S3_FILE_NAME = 'pulumi-outputs.json'; // Replace with your file name
-
-let collectorUrl = null;
-let otelInitialized = false;
-
-async function fetchCollectorUrl() {
-  try {
-    const s3 = new AWS.S3();
-    const data = await s3.getObject({ Bucket: S3_BUCKET_NAME, Key: S3_FILE_NAME }).promise();
-    const outputs = JSON.parse(data.Body.toString());
-    collectorUrl = `http://${outputs.ec2_private_ip}:4317`; // Assuming the port is 4317
-    console.log(`Retrieved collector URL from S3: ${collectorUrl}`);
-  } catch (error) {
-    console.error("Error fetching collector URL from S3:", error);
-    throw error;
-  }
+  "name": "lambda-function",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.8.12",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.47.1",
+    "@opentelemetry/exporter-collector": "^0.25.0",
+    "@opentelemetry/exporter-otlp-grpc": "^0.26.0",
+    "@opentelemetry/sdk-node": "^0.52.1",
+    "@opentelemetry/sdk-trace-base": "^1.25.1",
+    "aws-sdk": "^2.1655.0",
+    "aws-serverless-express": "^3.4.0",
+    "express": "^4.19.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
 }
-
-async function initializeOpenTelemetry() {
-  try {
-    const traceExporter = new OTLPTraceExporter({
-      url: collectorUrl,
-      credentials: grpc.credentials.createInsecure(),
-    });
-
-    const sdk = new NodeSDK({
-      traceExporter,
-      instrumentations: [getNodeAutoInstrumentations()],
-    });
-
-    await sdk.start();
-    otelInitialized = true;
-    console.log('OpenTelemetry SDK initialized');
-  } catch (error) {
-    console.error("Error initializing OpenTelemetry:", error);
-    throw error;
-  }
-}
-
-async function initializeAndFetch() {
-  try {
-    await fetchCollectorUrl();
-    await initializeOpenTelemetry();
-  } catch (error) {
-    console.error("Initialization failed:", error);
-    process.exit(1); // Exit Lambda function on initialization failure
-  }
-}
-
-module.exports = {
-  initializeAndFetch,
-};
-
 ```
-   - **Explanation**:
-     - **Fetches Configuration**: Retrieves configuration data (collector URL) from an AWS S3 bucket to initialize OpenTelemetry.
-     - **Initializes OpenTelemetry**: Sets up the OpenTelemetry SDK with an OTLP exporter over gRPC, enabling distributed tracing.
-     - **Error Handling**: Catches and logs initialization errors, ensuring proper operation of the Lambda function.
-
-5. **Create `routes.js`**:
-```javascript
-   const express = require('express');
-const awsServerlessExpress = require('aws-serverless-express');
-const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware');
-const { trace, context } = require('@opentelemetry/api');
-const { traceFunction } = require('./tracing');
-
-const app = express();
-const server = awsServerlessExpress.createServer(app);
-
-app.use(express.json());
-app.use(awsServerlessExpressMiddleware.eventContext());
-
-app.get('/', async (req, res) => {
-  await traceFunction('GET /', async () => {
-    const activeSpan = trace.getSpan(context.active());
-    if (activeSpan) {
-      res.send(`Hello, World! Trace ID: ${activeSpan.spanContext().traceId}`);
-    } else {
-      res.send('Hello, World!'); // Fallback response if no active span
-    }
-  });
-});
-
-app.get('/trace', async (req, res) => {
-  await traceFunction('GET /trace', async () => {
-    const activeSpan = trace.getSpan(context.active());
-    if (activeSpan) {
-      res.send(`This route is traced with OpenTelemetry! Trace ID: ${activeSpan.spanContext().traceId}`);
-    } else {
-      res.send('This route is traced with OpenTelemetry!'); // Fallback response if no active span
-    }
-  });
-});
-
-
-module.exports = {
-  app,
-  server,
-};
-```
-   - **Explanation**:
-     - **Middleware and Server Setup**: Configures middleware for JSON parsing and AWS Lambda event handling using `aws-serverless-express`.
-     - **Routes Definition**: Defines several HTTP routes (`/`, `/trace`, `/slow`, `/error`) with tracing instrumentation using OpenTelemetry API.
-     - **Error Handling**: Implements error handling within routes to capture and log errors with appropriate tracing context.
 
 6. **Create `tracing.js`**:
 ```javascript
-  const { trace, context } = require('@opentelemetry/api');
+const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
+const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
+const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
+const AWS = require('aws-sdk');
 
-// Middleware function to handle tracing
-async function traceFunction(name, callback) {
-  const currentSpan = trace.getTracer('default').startSpan(name);
-  return context.with(trace.setSpan(context.active(), currentSpan), async () => {
-    try {
-      await callback();
-    } catch (error) {
-      console.error(`Error processing ${name}:`, error);
-      currentSpan.setStatus({ code: 2 }); // Status code 2 represents an error
-    } finally {
-      currentSpan.end();
-    }
-  });
-}
+// Initialize AWS SDK (for interacting with S3)
+const s3 = new AWS.S3();
+const bucketName = 'lambda-function-bucket-poridhi';
+const objectKey = 'pulumi-outputs.json'; // Adjust if needed
 
-module.exports = {
-  traceFunction,
+// Function to retrieve EC2 private IP from S3 JSON file
+const getEc2PrivateIp = async () => {
+  const params = {
+    Bucket: bucketName,
+    Key: objectKey,
+  };
+  const data = await s3.getObject(params).promise();
+  const pulumiOutputs = JSON.parse(data.Body.toString('utf-8'));
+  return pulumiOutputs.ec2_private_ip.trim();
 };
-```
-   - **Explanation**:
-     - **Tracing Function**: Defines a utility function (`traceFunction`) to initiate and manage spans using OpenTelemetry API.
-     - **Span Management**: Starts a new span for each traced operation, ensuring proper error handling and span closure.
 
+const initializeTracer = async () => {
+  try {
+    // Retrieve EC2 private IP dynamically from S3 JSON file
+    const ec2PrivateIp = await getEc2PrivateIp();
+
+    // Initialize OpenTelemetry provider
+    const provider = new NodeTracerProvider();
+
+    // Configure OpenTelemetry exporter with dynamic IP
+    const exporter = new CollectorTraceExporter({
+      serviceName: 'my-lambda-function',
+      url: `http://${ec2PrivateIp}:4317`, // Replace with your OTel collector URL
+    });
+
+    // Add span processor and register provider
+    provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+    provider.register();
+
+    console.log('OpenTelemetry initialized successfully.');
+  } catch (error) {
+    console.error('Error initializing OpenTelemetry:', error);
+  }
+};
+
+module.exports = initializeTracer;
+```
 7. **Create `Dockerfile`**:
 
 ```dockerfile
-   # Use the official AWS Lambda node image
-FROM public.ecr.aws/lambda/nodejs:14
+ # Use the official AWS Lambda Node.js 20 image
+FROM public.ecr.aws/lambda/nodejs:20
 
-# Create directories for partitioned files
-RUN mkdir -p /var/task/initialization /var/task/routes
+# Copy function code and necessary files
+COPY index.js tracing.js package.json package-lock.json /var/task/
 
-# Copy initialization scripts
-COPY initialization/ /var/task/initialization/
+# Install production dependencies
+RUN npm install --production
 
-# Copy route definitions
-COPY routes/ /var/task/routes/
-
-# Copy Lambda function handler
-COPY index.js /var/task/
-
-# Install production dependencies (if any)
-COPY package.json package-lock.json /var/task/
-RUN npm install --only=production --prefix /var/task
-
-# Set working directory
-WORKDIR /var/task
-
-# Command can be overwritten by providing a different command in the template directly.
+# Set the CMD to your handler (adjust if your handler file or function name is different)
 CMD [ "index.handler" ]
 ```
-   - **Explanation**:
-     - **Base Image**: Uses the official AWS Lambda Node.js runtime image (`nodejs:16`) as the base.
-     - **Code and Dependency Copy**: Copies the function code (`index.js`) and dependency manifest files (`package.json`, `package-lock.json`) into the Docker image.
-     - **Dependency Installation**: Installs production dependencies using `npm install --only=production` to minimize image size and ensure runtime efficiency.
-     - **Command Definition**: Specifies the command (`CMD`) to execute the Lambda function handler (`index.handler`) upon container startup.
-
 ## Create a Token for Login to Pulumi
 
 1. **Create Pulumi Access Token**:
@@ -886,32 +821,51 @@ jobs:
    - Click on the "Test" button in the top-right corner.
    - If this is your first time, you will be prompted to configure a test event.
 
-3. **Configure the Test Event**:
+3. **Configure the Test Event and Test**:
    - Enter a name for the test event.
    - Replace the default JSON with your desired test JSON query, for example:
      ```json
      {
-       "httpMethod": "GET",
-       "path": "/",
-       "headers": {
-         "Content-Type": "application/json"
-       },
-       "body": null,
-       "isBase64Encoded": false
+      "httpMethod": "GET",
+      "path": "/default/my-lambda-function"
      }
      ```
 
-4. **Save and Test**:
-   - Save the test event configuration.
-   - Click on "Test" to execute the test event.
+     Outputs:
 
-5. **View Results**:
-   - Check the execution results, which will appear on the Lambda console.
-   - Review the logs and output to verify that the Lambda function executed correctly.
+     ![](./image/lura-7.png)
 
-   ![](https://github.com/Galadon123/Lambda-Function-with-Pulumi-python/blob/main/image/ajke-2.png)
+     ```json
+     {
+      "httpMethod": "GET",
+      "path": "/default/my-lambda-function/test1"
+     }
+     ```
+     Outputs:
 
-This process allows you to test your Lambda function directly within the AWS Lambda console using a JSON query.
+     ![](./image/lura-8.png)
+
+     ```json
+     {
+      "httpMethod": "GET",
+      "path": "/default/my-lambda-function/test2"
+     }
+     ```
+
+     Outputs:
+
+     ![](./image/lura-9.png)
+
+### Testing with API Gateway
+
+Create a api gateway with HTTP type for Lambda function inside lambda function
+
+![](./image/lura-2.png)
+
+### Test Each API 
+![](./image/lura-3.png)
+![](./image/lura-4.png)
+![](./image/lura-5.png)
 
 ## EC2 Instance Setup for Grafana, Tempo, and OpenTelemetry Collector
 
@@ -1079,9 +1033,9 @@ services:
     ```traceql
     {}
     ```
-    ![TraceQL](https://github.com/Galadon123/-Lambda-Function-Deployment/blob/main/image/o-1.png)
+    <!-- ![TraceQL](https://github.com/Galadon123/-Lambda-Function-Deployment/blob/main/image/o-1.png) -->
 ## Step 6: Managing and Understanding Trace Data
-![](https://github.com/Galadon123/-Lambda-Function-Deployment/blob/main/image/o-2.png)
+<!-- ![](https://github.com/Galadon123/-Lambda-Function-Deployment/blob/main/image/o-2.png) -->
 
 #### Explanation of Image Observations
 
