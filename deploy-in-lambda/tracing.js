@@ -30,7 +30,7 @@ const initializeTracer = async () => {
     // Configure OpenTelemetry exporter with dynamic IP
     const exporter = new CollectorTraceExporter({
       serviceName: 'my-lambda-function',
-      url: `http://${ec2PrivateIp}:4317`, // Replace with your OTel collector URL
+      url: `grpc://${ec2PrivateIp}:4317`, // Replace with your OTel collector URL
     });
 
     // Add span processor and register provider
