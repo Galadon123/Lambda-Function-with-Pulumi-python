@@ -110,6 +110,6 @@ jobs:
           AWS_REGION: us-east-1
           FUNCTION_NAME: my-lambda-function
         run: |
-          LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output json --region $AWS_REGION)
+          LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output test --region $AWS_REGION)
           echo $LAMBDA_ARN > lambda-function-arn.json
           aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi-1/lambda-function-arn.json
