@@ -1,10 +1,8 @@
-// tracing.js
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const AWS = require('aws-sdk');
+const { AWS } = require('aws-sdk');
 
 const s3 = new AWS.S3();
 const bucketName = 'lambda-function-bucket-poridhi';
@@ -31,7 +29,7 @@ const initializeTracer = async () => {
 
     await sdk.start();
     console.log('OpenTelemetry SDK initialized successfully.');
-    return sdk; // Return the SDK instead of the tracer
+    return sdk; // Return the SDK
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
     throw error;

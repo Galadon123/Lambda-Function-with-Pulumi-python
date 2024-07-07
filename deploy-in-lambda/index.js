@@ -1,4 +1,5 @@
 const initializeTracer = require('./tracing');
+const { trace } = require('@opentelemetry/api');
 
 let sdkPromise = initializeTracer();
 
@@ -14,7 +15,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const tracer = sdk.getTracerProvider().getTracer('default'); // Get the tracer from the SDK
+  const tracer = trace.getTracer('default'); // Get the tracer from the OpenTelemetry API
   const span = tracer.startSpan('lambda-handler');
   try {
     let response;
