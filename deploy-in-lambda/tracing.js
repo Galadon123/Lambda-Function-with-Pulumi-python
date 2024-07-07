@@ -2,6 +2,8 @@
 const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
+const { NodeSDK } = require('@opentelemetry/sdk-node');
+const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
 const AWS = require('aws-sdk');
 
 const s3 = new AWS.S3();
@@ -18,13 +20,21 @@ const getEc2PrivateIp = async () => {
 const initializeTracer = async () => {
   try {
     const ec2PrivateIp = await getEc2PrivateIp();
-    const provider = new NodeTracerProvider();
     const exporter = new OTLPTraceExporter({
-      url: `grpc://${ec2PrivateIp}:4317`, // Dynamic IP address for OTel Collector
+      url: `grpc://${ec2PrivateIp}:4317`,
     });
+
+    const provider = new NodeTracerProvider();
     provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
-    provider.register();
-    console.log('OpenTelemetry initialized successfully.');
+
+    const sdk = new NodeSDK({
+      traceExporter: exporter,
+      instrumentations: [getNodeAutoInstrumentations()],
+      provider,
+    });
+
+    await sdk.start();
+    console.log('OpenTelemetry SDK initialized successfully.');
     return provider.getTracer('default');
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
