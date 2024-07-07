@@ -3,7 +3,7 @@ const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
 const  AWS  = require('aws-sdk');
-
+//comment
 const s3 = new AWS.S3();
 const bucketName = 'lambda-function-bucket-poridhi';
 const objectKey = 'pulumi-outputs.json';
