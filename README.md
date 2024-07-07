@@ -228,6 +228,15 @@ lambda_policy = aws.iam.Policy("lambda-policy",
                     "arn:aws:s3:::lambda-function-bucket-poridhi",
                     "arn:aws:s3:::lambda-function-bucket-poridhi/*"
                 ]
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces"
+                ],
+                "Resource": "*"
             }
         ]
     }""",
@@ -310,25 +319,26 @@ pulumi.export("ec2_private_ip", ec2_instance.private_ip)
 2. **Create `index.js`**:
 ```javascript
 const initializeTracer = require('./tracing');
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
-const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
-const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
+const { trace } = require('@opentelemetry/api');
 
-// Initialize OpenTelemetry tracing
-initializeTracer().catch((error) => {
-  console.error('Initialization failed:', error);
-  process.exit(1); // Exit Lambda function on initialization failure
-});
+let sdkPromise = initializeTracer();
 
-// Lambda function handler
 exports.handler = async (event) => {
-  let response;
-
+  let sdk;
   try {
-    // Start a span to trace this Lambda function invocation
-    const span = NodeTracerProvider.getTracer('default').startSpan('lambda-handler');
+    sdk = await sdkPromise;
+  } catch (error) {
+    console.error('Initialization failed:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify('Internal Server Error'),
+    };
+  }
 
-    // Handle incoming HTTP requests
+  const tracer = trace.getTracer('default'); // Get the tracer from the OpenTelemetry API
+  const span = tracer.startSpan('lambda-handler');
+  try {
+    let response;
     switch (event.httpMethod) {
       case 'GET':
         if (event.path === '/default/my-lambda-function') {
@@ -360,15 +370,12 @@ exports.handler = async (event) => {
         };
     }
 
-    // End the span for this Lambda function invocation
     span.end();
-
     return response;
   } catch (error) {
-    // Handle errors gracefully
-    console.error('Error:', error);
-
-    // Return an error response
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
+    span.end();
     return {
       statusCode: 500,
       body: JSON.stringify('Internal Server Error'),
@@ -406,22 +413,18 @@ exports.handler = async (event) => {
 
 6. **Create `tracing.js`**:
 ```javascript
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
-const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
+const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
-const AWS = require('aws-sdk');
+const { NodeSDK } = require('@opentelemetry/sdk-node');
+const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+const  AWS  = require('aws-sdk');
 
-// Initialize AWS SDK (for interacting with S3)
 const s3 = new AWS.S3();
 const bucketName = 'lambda-function-bucket-poridhi';
-const objectKey = 'pulumi-outputs.json'; // Adjust if needed
+const objectKey = 'pulumi-outputs.json';
 
-// Function to retrieve EC2 private IP from S3 JSON file
 const getEc2PrivateIp = async () => {
-  const params = {
-    Bucket: bucketName,
-    Key: objectKey,
-  };
+  const params = { Bucket: bucketName, Key: objectKey };
   const data = await s3.getObject(params).promise();
   const pulumiOutputs = JSON.parse(data.Body.toString('utf-8'));
   return pulumiOutputs.ec2_private_ip.trim();
@@ -429,25 +432,22 @@ const getEc2PrivateIp = async () => {
 
 const initializeTracer = async () => {
   try {
-    // Retrieve EC2 private IP dynamically from S3 JSON file
     const ec2PrivateIp = await getEc2PrivateIp();
-
-    // Initialize OpenTelemetry provider
-    const provider = new NodeTracerProvider();
-
-    // Configure OpenTelemetry exporter with dynamic IP
-    const exporter = new CollectorTraceExporter({
-      serviceName: 'my-lambda-function',
-      url: `http://${ec2PrivateIp}:4317`, // Replace with your OTel collector URL
+    const exporter = new OTLPTraceExporter({
+      url: `http://${ec2PrivateIp}:4317`,
     });
 
-    // Add span processor and register provider
-    provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
-    provider.register();
+    const sdk = new NodeSDK({
+      traceExporter: exporter,
+      instrumentations: [getNodeAutoInstrumentations()],
+    });
 
-    console.log('OpenTelemetry initialized successfully.');
+    await sdk.start();
+    console.log('OpenTelemetry SDK initialized successfully.');
+    return sdk; // Return the SDK
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
+    throw error;
   }
 };
 
@@ -1046,22 +1046,3 @@ services:
 ## Summary
 
 This documentation provides a detailed guide on setting up an automated workflow to deploy a Node.js Lambda function using Pulumi and GitHub Actions. By organizing infrastructure code in Pulumi and leveraging GitHub Actions for CI/CD, we ensure a smooth and repeatable deployment process.
-
-
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:CreateNetworkInterface",
-        "ec2:DeleteNetworkInterface",
-        "ec2:DescribeNetworkInterfaces"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
