@@ -1,17 +1,13 @@
 const initializeTracer = require('./tracing');
 
-let tracer;
-
-initializeTracer().then((initializedTracer) => {
-  tracer = initializedTracer;
-}).catch((error) => {
-  console.error('Initialization failed:', error);
-  process.exit(1);
-});
+let tracerPromise = initializeTracer();
 
 exports.handler = async (event) => {
-  if (!tracer) {
-    console.error('Tracer not initialized.');
+  let tracer;
+  try {
+    tracer = await tracerPromise;
+  } catch (error) {
+    console.error('Initialization failed:', error);
     return {
       statusCode: 500,
       body: JSON.stringify('Internal Server Error'),

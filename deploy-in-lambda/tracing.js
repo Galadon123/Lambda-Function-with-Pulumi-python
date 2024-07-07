@@ -24,20 +24,17 @@ const initializeTracer = async () => {
       url: `grpc://${ec2PrivateIp}:4317`,
     });
 
-    const provider = new NodeTracerProvider();
-    provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
-
     const sdk = new NodeSDK({
       traceExporter: exporter,
       instrumentations: [getNodeAutoInstrumentations()],
-      provider,
     });
 
     await sdk.start();
     console.log('OpenTelemetry SDK initialized successfully.');
-    return provider.getTracer('default');
+    return sdk.traceProvider.getTracer('default');
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
+    throw error;
   }
 };
 
