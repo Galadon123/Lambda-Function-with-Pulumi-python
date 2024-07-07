@@ -1,21 +1,26 @@
 import pulumi
 import pulumi_aws as aws
-
+import json
 # Fetch Lambda function ARN from S3
-lambda_function_arn = aws.s3.get_object(bucket="lambda-function-bucket-poridhi-1", key="lambda-function-arn.json")
-
+lambda_function_arn_object = aws.s3.BucketObject.get("lambda-function-arn-object",
+    bucket="lambda-function-bucket-poridhi-1",
+    key="lambda-function-arn.json"
+)
+lambda_function_arn_content = lambda_function_arn_object.content.apply(lambda content: json.loads(content)["arn"])
 # Print the Lambda function ARN
 pulumi.log.info(f"Lambda Function ARN: {lambda_function_arn.arn}")
 
 # Define your API Gateway
-api = aws.apigatewayv2.Api("my-api", protocol_type="HTTP", target="AWS_LAMBDA", tags={"Name": "my-api"})
+api = aws.apigatewayv2.Api("my-api", protocol_type="HTTP")
 
 # Define Lambda integration for API Gateway using fetched ARN
 integration1 = aws.apigatewayv2.Integration("lambda-integration",
     api_id=api.id,
     integration_type="AWS_PROXY",  # Use AWS_PROXY for Lambda integrations
-    integration_method="POST",  # Handle POST requests
-    integration_uri=lambda_function_arn.arn,  # Access the ARN directly
+    integration_uri="arn:aws:lambda:us-east-1:058264152807:function:my-lambda-function",# Access the ARN directly
+    integration_method="ANY",
+    payload_format_version="2.0"  # Handle POST requests
+    
 )
 
 # Define routes for API Gateway

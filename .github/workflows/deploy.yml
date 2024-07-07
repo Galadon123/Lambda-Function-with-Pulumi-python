@@ -83,6 +83,8 @@ jobs:
           ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
           IMAGE_TAG: latest
           LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
+          PRIVATE_SUBNET_ID: ${{ env.PRIVATE_SUBNET_ID }}
+          SECURITY_GROUP_ID: ${{ env.SECURITY_GROUP_ID }}
         run: |
           FUNCTION_NAME=my-lambda-function
           IMAGE_URI=$ECR_REPO_URL:$IMAGE_TAG
@@ -111,5 +113,5 @@ jobs:
           FUNCTION_NAME: my-lambda-function
         run: |
           LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
-          echo $LAMBDA_ARN > lambda-function-arn.json
+          echo "{\"arn\": \"$LAMBDA_ARN\"}" > lambda-function-arn.json
           aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi-1/lambda-function-arn.json
