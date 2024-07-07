@@ -19,7 +19,7 @@ const initializeTracer = async () => {
   try {
     const ec2PrivateIp = await getEc2PrivateIp();
     const exporter = new OTLPTraceExporter({
-      url: `grpc://${ec2PrivateIp}:4317`,
+      url: `http://${ec2PrivateIp}:4317`,
     });
 
     const sdk = new NodeSDK({
