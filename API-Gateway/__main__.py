@@ -28,7 +28,7 @@ api = aws.apigatewayv2.Api("my-api", protocol_type="HTTP")
 integration = pulumi.Output.from_input(lambda_function_arn).apply(lambda arn: aws.apigatewayv2.Integration("lambda-integration",
     api_id=api.id,
     integration_type="AWS_PROXY",  # Use AWS_PROXY for Lambda integrations
-    integration_uri=arn,
+    integration_uri=arn,  # Correct attribute name is `integration_uri`
     integration_method="ANY",
     payload_format_version="2.0"
 ))
@@ -51,17 +51,22 @@ route3 = aws.apigatewayv2.Route("test1-route",
     route_key="ANY /my-lambda-function/test1",
     target=integration.id.apply(lambda id: f"integrations/{id}")
 )
+
+# Create the default stage with auto deployment
 stage = aws.apigatewayv2.Stage("default-stage",
     api_id=api.id,
     auto_deploy=True  # Automatically deploy changes to this stage
 )
 
 # Export API Gateway endpoint URL
+pulumi.export("api_url", stage.invoke_url)
+
+# Add API Gateway as trigger for another Lambda function
 lambda_trigger = aws.lambda_.FunctionEventInvokeConfig("lambda-trigger",
     function_name="my-lambda-function",  # Specify the other Lambda function name here
     destination_config={
         "onSuccess": {
-            "destination": integration.uri  # Use the Lambda function ARN as the destination
+            "destination": integration.integration_uri  # Use the correct attribute `integration_uri`
         }
     },
 )
