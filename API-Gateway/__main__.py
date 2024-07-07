@@ -51,6 +51,10 @@ route3 = aws.apigatewayv2.Route("test1-route",
     route_key="ANY /my-lambda-function/test1",
     target=integration.id.apply(lambda id: f"integrations/{id}")
 )
+stage = aws.apigatewayv2.Stage("default-stage",
+    api_id=api.id,
+    auto_deploy=True  # Automatically deploy changes to this stage
+)
 
 # Export API Gateway endpoint URL
 pulumi.export("api_url", api.api_endpoint)
