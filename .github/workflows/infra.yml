@@ -43,7 +43,7 @@ jobs:
       - name: Pulumi stack select
         run: |
           source venv/bin/activate
-          pulumi stack select dev-func --cwd infra
+          pulumi stack select lambda-function/dev --cwd infra
 
       - name: Pulumi refresh
         run: |
