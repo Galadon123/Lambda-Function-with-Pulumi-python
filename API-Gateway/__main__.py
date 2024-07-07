@@ -13,7 +13,7 @@ api = aws.apigatewayv2.Api("my-api", protocol_type="HTTP", target="AWS_LAMBDA", 
 integration1 = aws.apigatewayv2.Integration("lambda-integration",
     api_id=api.id,
     integration_type="AWS_PROXY",  # Use AWS_PROXY for Lambda integrations
-    integration_method="ANY",
+    integration_method="ANY",  # Handle any HTTP method
     integration_uri=lambda_function_arn,
 )
 
