@@ -13,7 +13,7 @@ igw = aws.ec2.InternetGateway("my-vpc-igw",
                               tags={"Name": "my-vpc-igw"})
 
 
-# Create Route Table for Public Subnets
+# Create Route Table for Public Subnet
 public_route_table = aws.ec2.RouteTable("my-vpc-public-rt",
                                         vpc_id=vpc.id,
                                         routes=[{
