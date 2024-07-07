@@ -58,10 +58,10 @@ stage = aws.apigatewayv2.Stage("default-stage",
 
 # Export API Gateway endpoint URL
 lambda_trigger = aws.lambda_.FunctionEventInvokeConfig("lambda-trigger",
-    function_name="my-lambda-function",  # Specify your existing Lambda function name here
+    function_name="another-lambda-function",  # Specify the other Lambda function name here
     destination_config={
         "onSuccess": {
-            "destination": lambda_function_arn  # Use the Lambda function ARN as the destination
+            "destination": integration.uri  # Use the Lambda function ARN as the destination
         }
     },
 )
