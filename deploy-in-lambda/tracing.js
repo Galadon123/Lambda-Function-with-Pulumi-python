@@ -1,7 +1,6 @@
-
 // tracing.js
 const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');
-const { CollectorTraceExporter } = require('@opentelemetry/exporter-collector');
+const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
 const AWS = require('aws-sdk');
 
@@ -20,9 +19,8 @@ const initializeTracer = async () => {
   try {
     const ec2PrivateIp = await getEc2PrivateIp();
     const provider = new NodeTracerProvider();
-    const exporter = new CollectorTraceExporter({
-      serviceName: 'my-lambda-function',
-      url: `http://34.201.69.207:4317`,
+    const exporter = new OTLPTraceExporter({
+      url: `grpc://${ec2PrivateIp}:4317`, // Dynamic IP address for OTel Collector
     });
     provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
     provider.register();
@@ -34,5 +32,3 @@ const initializeTracer = async () => {
 };
 
 module.exports = initializeTracer;
-
-// Lambda function

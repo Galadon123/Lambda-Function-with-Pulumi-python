@@ -167,6 +167,15 @@ lambda_policy = aws.iam.Policy("lambda-policy",
                     "arn:aws:s3:::lambda-function-bucket-poridhi",
                     "arn:aws:s3:::lambda-function-bucket-poridhi/*"
                 ]
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces"
+                ],
+                "Resource": "*"
             }
         ]
     }""",
