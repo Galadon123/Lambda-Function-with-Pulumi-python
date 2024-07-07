@@ -15,7 +15,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const tracer = trace.getTracer('default'); // Getssfsfas thes tracer from the OpenTelemetry ssss
+  const tracer = trace.getTracer('default'); // Getsssffsfas thes tracer from the OpenTelemetry ssss
   const span = tracer.startSpan('lambda-handler');
   try {
     let response;
