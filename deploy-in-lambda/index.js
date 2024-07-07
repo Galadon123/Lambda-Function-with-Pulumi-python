@@ -1,11 +1,11 @@
 const initializeTracer = require('./tracing');
 
-let tracerPromise = initializeTracer();
+let sdkPromise = initializeTracer();
 
 exports.handler = async (event) => {
-  let tracer;
+  let sdk;
   try {
-    tracer = await tracerPromise;
+    sdk = await sdkPromise;
   } catch (error) {
     console.error('Initialization failed:', error);
     return {
@@ -14,6 +14,7 @@ exports.handler = async (event) => {
     };
   }
 
+  const tracer = sdk.getTracerProvider().getTracer('default'); // Get the tracer from the SDK
   const span = tracer.startSpan('lambda-handler');
   try {
     let response;

@@ -31,7 +31,7 @@ const initializeTracer = async () => {
 
     await sdk.start();
     console.log('OpenTelemetry SDK initialized successfully.');
-    return sdk.traceProvider.getTracer('default');
+    return sdk; // Return the SDK instead of the tracer
   } catch (error) {
     console.error('Error initializing OpenTelemetry:', error);
     throw error;
