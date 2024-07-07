@@ -57,12 +57,11 @@ stage = aws.apigatewayv2.Stage("default-stage",
 )
 
 # Export API Gateway endpoint URL
-pulumi.export("api_url", api.api_endpoint)
 lambda_trigger = aws.lambda_.FunctionEventInvokeConfig("lambda-trigger",
     function_name="my-lambda-function",  # Specify your existing Lambda function name here
     destination_config={
         "onSuccess": {
-            "destination": stage.invoke_url
+            "destination": lambda_function_arn  # Use the Lambda function ARN as the destination
         }
     },
 )
