@@ -104,12 +104,12 @@ jobs:
               --region $AWS_REGION
           fi
 
-      # Store Lambda function ARN in S3 bucket
+      # Store Lambda function ARN in S3 bucket as JSON
       - name: Store Lambda function ARN in S3
         env:
           AWS_REGION: us-east-1
           FUNCTION_NAME: my-lambda-function
         run: |
-          LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
-          aws s3 cp - s3://lambda-function-bucket-poridhi/lambda-function-arn.txt <<< "$LAMBDA_ARN"
-
+          LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output json --region $AWS_REGION)
+          echo $LAMBDA_ARN > lambda-function-arn.json
+          aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi/lambda-function-arn.json
