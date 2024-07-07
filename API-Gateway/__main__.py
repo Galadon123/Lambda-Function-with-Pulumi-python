@@ -65,8 +65,4 @@ lambda_trigger = aws.lambda_.FunctionEventInvokeConfig("lambda-trigger",
             "destination": stage.invoke_url
         }
     },
-    event_invoke_config={
-        "arn": api.execution_arn,
-        "type": "AWS_PROXY"
-    }
 )
