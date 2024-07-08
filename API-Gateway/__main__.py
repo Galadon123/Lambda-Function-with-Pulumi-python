@@ -57,7 +57,13 @@ stage = aws.apigatewayv2.Stage("default-stage",
     api_id=api.id,
     auto_deploy=True  # Automatically deploy changes to this stages
 )
-
+# Add permission for API Gateway to invoke Lambda function
+lambda_permission = lambda_function_arn.apply(lambda arn: aws.lambda_.Permission("apigw-lambda-permission",
+    action="lambda:InvokeFunction",
+    function=arn,
+    principal="apigateway.amazonaws.com",
+    source_arn=api.execution_arn.apply(lambda execution_arn: f"{execution_arn}/*/*")
+))
 # Export API Gateway endpoint URL
 pulumi.export("api_url", stage.invoke_url)
 
