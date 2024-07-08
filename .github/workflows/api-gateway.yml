@@ -1,4 +1,4 @@
-name: Pulumi Deploy
+name: API-Gateway Deploy
 
 on:
   push:
@@ -6,6 +6,11 @@ on:
       - main
     paths:
       - 'API-Gateway/**'
+
+  workflow_run:
+    workflows: ["Deploy Lambda Function"]
+    types:
+      - completed
 
 jobs:
   deploy:
