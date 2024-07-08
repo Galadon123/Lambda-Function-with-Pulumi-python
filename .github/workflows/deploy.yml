@@ -31,7 +31,7 @@ jobs:
       # Download Pulumi outputs from S3 bucket
       - name: Download Pulumi outputs from S3
         run: |
-          aws s3 cp s3://lambda-function-bucket-poridhi-1/pulumi-outputs.json ./outputs.json
+          aws s3 cp s3://lambda-function-bucket-poridhi/pulumi-outputs.json ./outputs.json
 
       # Parse Pulumi outputs and set environment variables
       - name: Parse Pulumi outputs
@@ -114,4 +114,4 @@ jobs:
         run: |
           LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
           echo "{\"arn\": \"$LAMBDA_ARN\"}" > lambda-function-arn.json
-          aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi-1/lambda-function-arn.json
+          aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi/lambda-function-arn.json

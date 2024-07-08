@@ -3,7 +3,7 @@ import pulumi_aws as aws
 import json
 
 # Define the bucket and object names
-bucket_name = "lambda-function-bucket-poridhi-1"
+bucket_name = "lambda-function-bucket-poridhi"
 object_key = "lambda-function-arn.json"
 
 # Fetch the object from S3
