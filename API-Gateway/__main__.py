@@ -36,19 +36,19 @@ integration = pulumi.Output.from_input(lambda_function_arn).apply(lambda arn: aw
 # Define routes for API Gateway
 route1 = aws.apigatewayv2.Route("my-route",
     api_id=api.id,
-    route_key="ANY /my-lambda-function",  # Adjusted route key for POST methods
+    route_key="GET /my-lambda-function",  # Adjusted route key for POST methods
     target=integration.id.apply(lambda id: f"integrations/{id}")
 )
 
 route2 = aws.apigatewayv2.Route("test2-route",
     api_id=api.id,
-    route_key="ANY /my-lambda-function/test2",
+    route_key="GET /my-lambda-function/test2",
     target=integration.id.apply(lambda id: f"integrations/{id}")
 )
 
 route3 = aws.apigatewayv2.Route("test1-route",
     api_id=api.id,
-    route_key="ANY /my-lambda-function/test1",
+    route_key="GET /my-lambda-function/test1",
     target=integration.id.apply(lambda id: f"integrations/{id}")
 )
 
