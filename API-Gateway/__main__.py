@@ -62,11 +62,3 @@ stage = aws.apigatewayv2.Stage("default-stage",
 pulumi.export("api_url", stage.invoke_url)
 
 # Add API Gateway as trigger for another Lambda function
-lambda_trigger = aws.lambda_.FunctionEventInvokeConfig("lambda-trigger",
-    function_name="my-lambda-function",  # Specify the other Lambda function name here
-    destination_config={
-        "onSuccess": {
-            "destination": integration.integration_uri  # Use the correct attribute `integration_uri`
-        }
-    },
-)
