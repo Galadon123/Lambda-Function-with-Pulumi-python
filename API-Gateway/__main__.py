@@ -55,7 +55,7 @@ route3 = aws.apigatewayv2.Route("test1-route",
 # Create the default stage with auto deployment
 stage = aws.apigatewayv2.Stage("default-stage",
     api_id=api.id,
-    auto_deploy=True  # Automatically deploy changes to this stage
+    auto_deploy=True  # Automatically deploy changes to this stages
 )
 
 # Export API Gateway endpoint URL

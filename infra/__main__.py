@@ -6,7 +6,7 @@ vpc = aws.ec2.Vpc("my-vpc",
                   cidr_block="10.0.0.0/16",
                   tags={"Name": "my-vpc"})
 
-# Create Internet Gateway
+# Create Internet Gateways
 igw = aws.ec2.InternetGateway("my-vpc-igw",
                               vpc_id=vpc.id,
                               opts=pulumi.ResourceOptions(depends_on=[vpc]),

@@ -1,117 +1,117 @@
-# name: Deploy Lambda Function
+name: Deploy Lambda Function
 
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - 'deploy-in-lambda/**'
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'deploy-in-lambda/**'
 
-#   workflow_run:
-#     workflows: ["Pulumi Deploy"]
-#     types:
-#       - completed
+  workflow_run:
+    workflows: ["Pulumi Deploy"]
+    types:
+      - completed
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-#       # Ensure AWS credentials are configured
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v2
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: us-east-1
+      # Ensure AWS credentials are configured
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-#       # Download Pulumi outputs from S3 bucket
-#       - name: Download Pulumi outputs from S3
-#         run: |
-#           aws s3 cp s3://lambda-function-bucket-poridhi-1/pulumi-outputs.json ./outputs.json
+      # Download Pulumi outputs from S3 bucket
+      - name: Download Pulumi outputs from S3
+        run: |
+          aws s3 cp s3://lambda-function-bucket-poridhi-1/pulumi-outputs.json ./outputs.json
 
-#       # Parse Pulumi outputs and set environment variables
-#       - name: Parse Pulumi outputs
-#         id: parse_outputs
-#         run: |
-#           cat ./outputs.json
-#           ECR_REPO_URL=$(jq -r '.ecr_repo_url' ./outputs.json)
-#           ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs.json)
-#           LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs.json)
-#           PRIVATE_SUBNET_ID=$(jq -r '.private_subnet_id' ./outputs.json)
-#           SECURITY_GROUP_ID=$(jq -r '.lambda_security_group_id' ./outputs.json)
-#           echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
-#           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-#           echo "PRIVATE_SUBNET_ID=$PRIVATE_SUBNET_ID" >> $GITHUB_ENV
-#           echo "SECURITY_GROUP_ID=$SECURITY_GROUP_ID" >> $GITHUB_ENV
-#           echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
+      # Parse Pulumi outputs and set environment variables
+      - name: Parse Pulumi outputs
+        id: parse_outputs
+        run: |
+          cat ./outputs.json
+          ECR_REPO_URL=$(jq -r '.ecr_repo_url' ./outputs.json)
+          ECR_REGISTRY=$(jq -r '.ecr_registry' ./outputs.json)
+          LAMBDA_ROLE_ARN=$(jq -r '.lambda_role_arn' ./outputs.json)
+          PRIVATE_SUBNET_ID=$(jq -r '.private_subnet_id' ./outputs.json)
+          SECURITY_GROUP_ID=$(jq -r '.lambda_security_group_id' ./outputs.json)
+          echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "PRIVATE_SUBNET_ID=$PRIVATE_SUBNET_ID" >> $GITHUB_ENV
+          echo "SECURITY_GROUP_ID=$SECURITY_GROUP_ID" >> $GITHUB_ENV
+          echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> $GITHUB_ENV
 
-#       # Install AWS CLI
-#       - name: Install AWS CLI
-#         run: |
-#           sudo apt-get update
-#           sudo apt-get install -y python3-pip
-#           pip3 install awscli
+      # Install AWS CLI
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install awscli
 
-#       # Login to AWS ECR
-#       - name: Login to AWS ECR
-#         env:
-#           AWS_REGION: us-east-1
-#           ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
-#         run: |
-#           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+      # Login to AWS ECR
+      - name: Login to AWS ECR
+        env:
+          AWS_REGION: us-east-1
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
 
-#       # Build and push Docker image
-#       - name: Build and push Docker image
-#         env:
-#           ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
-#           IMAGE_TAG: latest
-#         run: |
-#           cd deploy-in-lambda
-#           docker build -t $ECR_REPO_URL:$IMAGE_TAG .
-#           docker push $ECR_REPO_URL:$IMAGE_TAG
+      # Build and push Docker image
+      - name: Build and push Docker image
+        env:
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
+          IMAGE_TAG: latest
+        run: |
+          cd deploy-in-lambda
+          docker build -t $ECR_REPO_URL:$IMAGE_TAG .
+          docker push $ECR_REPO_URL:$IMAGE_TAG
 
-#       # Create or update Lambda function
-#       - name: Create or update Lambda function
-#         env:
-#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           AWS_REGION: us-east-1
-#           ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
-#           IMAGE_TAG: latest
-#           LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
-#           PRIVATE_SUBNET_ID: ${{ env.PRIVATE_SUBNET_ID }}
-#           SECURITY_GROUP_ID: ${{ env.SECURITY_GROUP_ID }}
-#         run: |
-#           FUNCTION_NAME=my-lambda-function
-#           IMAGE_URI=$ECR_REPO_URL:$IMAGE_TAG
-#           EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
-#           if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
-#             echo "Creating new Lambda function..."
-#             aws lambda create-function \
-#               --function-name $FUNCTION_NAME \
-#               --package-type Image \
-#               --code ImageUri=$IMAGE_URI \
-#               --role $LAMBDA_ROLE_ARN \
-#               --vpc-config SubnetIds=$PRIVATE_SUBNET_ID,SecurityGroupIds=$SECURITY_GROUP_ID \
-#               --region $AWS_REGION
-#           else
-#             echo "Updating existing Lambda function..."
-#             aws lambda update-function-code \
-#               --function-name $FUNCTION_NAME \
-#               --image-uri $IMAGE_URI \
-#               --region $AWS_REGION
-#           fi
+      # Create or update Lambda function
+      - name: Create or update Lambda function
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+          ECR_REPO_URL: ${{ env.ECR_REPO_URL }}
+          IMAGE_TAG: latest
+          LAMBDA_ROLE_ARN: ${{ env.LAMBDA_ROLE_ARN }}
+          PRIVATE_SUBNET_ID: ${{ env.PRIVATE_SUBNET_ID }}
+          SECURITY_GROUP_ID: ${{ env.SECURITY_GROUP_ID }}
+        run: |
+          FUNCTION_NAME=my-lambda-function
+          IMAGE_URI=$ECR_REPO_URL:$IMAGE_TAG
+          EXISTING_FUNCTION=$(aws lambda get-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>&1 || true)
+          if echo "$EXISTING_FUNCTION" | grep -q 'ResourceNotFoundException'; then
+            echo "Creating new Lambda function..."
+            aws lambda create-function \
+              --function-name $FUNCTION_NAME \
+              --package-type Image \
+              --code ImageUri=$IMAGE_URI \
+              --role $LAMBDA_ROLE_ARN \
+              --vpc-config SubnetIds=$PRIVATE_SUBNET_ID,SecurityGroupIds=$SECURITY_GROUP_ID \
+              --region $AWS_REGION
+          else
+            echo "Updating existing Lambda function..."
+            aws lambda update-function-code \
+              --function-name $FUNCTION_NAME \
+              --image-uri $IMAGE_URI \
+              --region $AWS_REGION
+          fi
 
-#       # Store Lambda function ARN in S3 bucket as JSON
-#       - name: Store Lambda function ARN in S3
-#         env:
-#           AWS_REGION: us-east-1
-#           FUNCTION_NAME: my-lambda-function
-#         run: |
-#           LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
-#           echo "{\"arn\": \"$LAMBDA_ARN\"}" > lambda-function-arn.json
-#           aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi-1/lambda-function-arn.json
+      # Store Lambda function ARN in S3 bucket as JSON
+      - name: Store Lambda function ARN in S3
+        env:
+          AWS_REGION: us-east-1
+          FUNCTION_NAME: my-lambda-function
+        run: |
+          LAMBDA_ARN=$(aws lambda get-function --function-name $FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
+          echo "{\"arn\": \"$LAMBDA_ARN\"}" > lambda-function-arn.json
+          aws s3 cp lambda-function-arn.json s3://lambda-function-bucket-poridhi-1/lambda-function-arn.json
