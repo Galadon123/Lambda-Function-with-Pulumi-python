@@ -75,7 +75,7 @@ jobs:
           docker push $ECR_REPO_URL:$IMAGE_TAG
 
       # Create or update Lambda function
-      - name: Create or update Lambda function
+      - name: Update Lambda function
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

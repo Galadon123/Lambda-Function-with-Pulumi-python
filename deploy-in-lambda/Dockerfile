@@ -9,8 +9,3 @@ RUN npm install --production
 
 # Set the CMD to your handler (adjust if your handler file or function name is different)
 CMD [ "index.handler" ]
-
-
-
-
-

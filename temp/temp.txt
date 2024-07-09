@@ -1,0 +1,291 @@
+import base64
+import pulumi
+import pulumi_aws as aws
+import pulumi_docker as docker
+
+# Create an ECR repository
+repo = aws.ecr.Repository('nginx-repo')
+
+# Get repository credentials
+creds = repo.registry_id.apply(
+    lambda registry_id: aws.ecr.get_credentials(registry_id=registry_id)
+)
+
+decoded_creds = creds.authorization_token.apply(
+    lambda token: base64.b64decode(token).decode('utf-8').split(':')
+)
+
+registry_server = creds.proxy_endpoint
+
+# Define the ECR image name
+ecr_image_name = repo.repository_url.apply(lambda url: f"{url}:latest")
+
+# Push the Docker image to the ECR repository
+image = docker.Image('nginx-ecr-image',
+    image_name=ecr_image_name,
+    build=docker.DockerBuildArgs(
+        context=".",
+        dockerfile="Dockerfile",
+    ),
+    registry={
+        "server": registry_server,
+        "username": decoded_creds.apply(lambda creds: creds[0]),
+        "password": decoded_creds.apply(lambda creds: creds[1]),
+    }
+)
+
+# Export the repository URL and image ID
+pulumi.export('repository_url', repo.repository_url)
+pulumi.export('image_id', image.image_name)
+
+
+
+import pulumi
+import pulumi_aws as aws
+import json
+
+def get_exports_from_s3(bucket_name, object_key):
+    # Use the get_object function to retrieve the S3 object
+    s3_object = aws.s3.get_object(bucket=bucket_name, key=object_key)
+    
+    # Check if s3_object.body is an Output
+    if isinstance(s3_object.body, pulumi.Output):
+        return s3_object.body.apply(lambda body: json.loads(body))
+    else:
+        # If it's not an Output, assume it's a string and parse it directly
+        return json.loads(s3_object.body)
+
+# Usage
+exports = get_exports_from_s3('lambda-function-bucket-poridhi', 'pulumi-exports.json')
+
+
+
+
+api = aws.apigateway.RestApi("my-api",
+    name="my-api",
+    description="API for my Lambda function"
+)
+
+# Create API Gateway resource for /default/my-lambda-function
+default_resource = aws.apigateway.Resource("default-resource",
+    rest_api=api.id,
+    parent_id=api.root_resource_id,
+    path_part="default"
+)
+
+lambda_resource = aws.apigateway.Resource("lambda-resource",
+    rest_api=api.id,
+    parent_id=default_resource.id,
+    path_part="my-lambda-function"
+)
+
+# Create API Gateway resources for /test1 and /test2
+test1_resource = aws.apigateway.Resource("test1-resource",
+    rest_api=api.id,
+    parent_id=lambda_resource.id,
+    path_part="test1"
+)
+
+test2_resource = aws.apigateway.Resource("test2-resource",
+    rest_api=api.id,
+    parent_id=lambda_resource.id,
+    path_part="test2"
+)
+
+# Create GET method for each resource
+resources = [lambda_resource, test1_resource, test2_resource]
+for resource in resources:
+    method = aws.apigateway.Method(f"get-method-{resource.path_part}",
+        rest_api=api.id,
+        resource_id=resource.id,
+        http_method="GET",
+        authorization="NONE"
+    )
+
+    integration = aws.apigateway.Integration(f"lambda-integration-{resource.path_part}",
+        rest_api=api.id,
+        resource_id=resource.id,
+        http_method=method.http_method,
+        integration_http_method="POST",
+        type="AWS_PROXY",
+        uri=lambda_function.invoke_arn
+    )
+
+# Create a deployment for the API
+deployment = aws.apigateway.Deployment("api-deployment",
+    rest_api=api.id,
+    triggers={
+        "redeployment": pulumi.Output.all(resources).apply(lambda _: json.dumps({
+            "redeployment": pulumi.Output.from_input(int(time.time())).apply(str)
+        }))
+    },
+    opts=pulumi.ResourceOptions(depends_on=resources)
+)
+
+# Create a stage for the deployment
+stage = aws.apigateway.Stage("api-stage",
+    deployment=deployment.id,
+    rest_api=api.id,
+    stage_name="prod"
+)
+
+# Grant API Gateway permission to invoke the Lambda function
+lambda_permission = aws.lambda_.Permission("api-gateway-permission",
+    action="lambda:InvokeFunction",
+    function=lambda_function.name,
+    principal="apigateway.amazonaws.com",
+    source_arn=api.execution_arn.apply(lambda arn: f"{arn}/*/*")
+)
+
+# Export the API Gateway URL
+pulumi.export("api_url", stage.invoke_url)
+
+
+
+API
+
+
+api = aws.apigateway.RestApi("my-api",
+    name="my-api",
+    description="API for my Lambda function"
+)
+def get_or_create_resource(name, rest_api_id, parent_id, path_part):
+    try:
+        # Try to get the existing resource
+        existing_resources = aws.apigateway.get_resources(rest_api_id=rest_api_id)
+        for resource in existing_resources.items:
+            if resource.path_part == path_part and resource.parent_id == parent_id:
+                return aws.apigateway.Resource.get(f"{name}-existing", resource.id)
+    except Exception as e:
+        print(f"Error checking for existing resource: {e}")
+    
+    # If the resource doesn't exist, create it
+    return aws.apigateway.Resource(name,
+        rest_api=rest_api_id,
+        parent_id=parent_id,
+        path_part=path_part
+    )
+# Create API Gateway resource for /default/my-lambda-function
+resources = [
+    {"name": "default-my-lambda-function", "path_parts": ["default", "my-lambda-function"]},
+    {"name": "test1", "path_parts": ["default", "my-lambda-function", "test1"]},
+    {"name": "test2", "path_parts": ["default", "my-lambda-function", "test2"]}
+]
+
+created_resources = []
+
+for resource_info in resources:
+    parent_id = api.root_resource_id
+    for i, path_part in enumerate(resource_info["path_parts"]):
+        resource_name = f"{resource_info['name']}-resource-{i}"
+        resource = get_or_create_resource(resource_name, api.id, parent_id, path_part)
+        parent_id = resource.id
+        if i == len(resource_info["path_parts"]) - 1:
+            created_resources.append(resource)
+
+    # Create GET method for each resource
+    method = aws.apigateway.Method(f"get-method-{resource_info['name']}",
+        rest_api=api.id,
+        resource_id=resource.id,
+        http_method="GET",
+        authorization="NONE"
+    )
+
+    integration = aws.apigateway.Integration(f"lambda-integration-{resource_info['name']}",
+        rest_api=api.id,
+        resource_id=resource.id,
+        http_method=method.http_method,
+        integration_http_method="POST",
+        type="AWS_PROXY",
+        uri=lambda_function.invoke_arn
+    )
+
+# Create a deployment for the API
+deployment = aws.apigateway.Deployment("api-deployment",
+    rest_api=api.id,
+    triggers={
+        "redeployment": pulumi.Output.all(created_resources).apply(lambda _: str(int(time.time())))
+    },
+    opts=pulumi.ResourceOptions(depends_on=created_resources)
+)
+
+# Create a stage for the deployment
+stage = aws.apigateway.Stage("api-stage",
+    deployment=deployment.id,
+    rest_api=api.id,
+    stage_name="prod"
+)
+
+# Grant API Gateway permission to invoke the Lambda function
+lambda_permission = aws.lambda_.Permission("api-gateway-permission",
+    action="lambda:InvokeFunction",
+    function=lambda_function.name,
+    principal="apigateway.amazonaws.com",
+    source_arn=api.execution_arn.apply(lambda arn: f"{arn}/*/*")
+)
+
+# Export the API Gateway URL
+pulumi.export("api_url", stage.invoke_url)
+
+
+
+ekho0n 
+
+
+# api = aws.apigateway.RestApi("myApi",
+#     description="API Gateway for Lambda function",
+# )
+# default_resource = aws.apigateway.Resource("defaultResource",
+#     parent_id=api.root_resource_id,
+#     path_part="default",
+#     rest_api=api.id,
+# )
+# # Create a resource
+# lambda_resource = aws.apigateway.Resource("lambdaResource",
+#     parent_id=default_resource.id,
+#     path_part="my-lambda-function",
+#     rest_api=api.id,
+# )
+
+
+# # Create a method for the GET request
+# method = aws.apigateway.Method("myMethod",
+#     http_method="GET",
+#     authorization="NONE",
+#     resource_id=lambda_resource.id,
+#     rest_api=api.id,
+# )
+
+# integration = aws.apigateway.Integration("myIntegration",
+#     http_method=method.http_method,
+#     integration_http_method="POST",
+#     type="AWS_PROXY",
+#     uri=lambda_function_arn.apply(lambda arn: f"arn:aws:apigateway:{aws.config.region}:lambda:path/2015-03-31/functions/{arn}/invocations"),
+#     resource_id=lambda_resource.id,
+#     rest_api=api.id,
+# )
+
+# # Grant API Gateway permission to invoke the Lambda function
+# permission = aws.lambda_.Permission("myPermission",
+#     action="lambda:InvokeFunction",
+#     function=lambda_function_arn,
+#     principal="apigateway.amazonaws.com",
+#     source_arn=api.execution_arn.apply(lambda arn: f"{arn}/*/*"),
+# )
+
+# # Deploy the API
+# deployment = aws.apigateway.Deployment("myDeployment",
+#     rest_api=api.id,
+#     # Ensure deployment triggers on changes to the integration
+#     triggers={
+#         "integration": integration.id,
+#     },
+#     opts=pulumi.ResourceOptions(depends_on=[integration]),
+# )
+
+# # Create a stage
+# stage = aws.apigateway.Stage("myStage",
+#     deployment=deployment.id,
+#     rest_api=api.id,
+#     stage_name="prod",
+# )

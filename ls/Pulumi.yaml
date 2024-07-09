@@ -1,4 +1,4 @@
-name: infra
+name: ls
 runtime:
   name: python
   options:

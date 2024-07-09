@@ -1,4 +1,4 @@
-name: infra
+name: temp
 runtime:
   name: python
   options:
