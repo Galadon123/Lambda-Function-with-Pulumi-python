@@ -4,6 +4,7 @@ import json
 import base64
 import pulumi_docker as docker
 import time
+
 # Create VPC
 vpc = aws.ec2.Vpc("my-vpc",
                   cidr_block="10.0.0.0/16",
@@ -15,7 +16,6 @@ igw = aws.ec2.InternetGateway("my-vpc-igw",
                               opts=pulumi.ResourceOptions(depends_on=[vpc]),
                               tags={"Name": "my-vpc-igw"})
 
-
 # Create Route Table for Public
 public_route_table = aws.ec2.RouteTable("my-vpc-public-rt",
                                         vpc_id=vpc.id,
@@ -26,7 +26,7 @@ public_route_table = aws.ec2.RouteTable("my-vpc-public-rt",
                                         opts=pulumi.ResourceOptions(depends_on=[igw]),
                                         tags={"Name": "my-vpc-public-rt"})
 
-# Create Public Subnet within VPC c
+# Create Public Subnet within VPC
 public_subnet = aws.ec2.Subnet("public-subnet",
                                vpc_id=vpc.id,
                                cidr_block="10.0.1.0/24",
@@ -39,7 +39,7 @@ public_subnet = aws.ec2.Subnet("public-subnet",
 public_route_table_association = aws.ec2.RouteTableAssociation("public-subnet-association",
                                                                subnet_id=public_subnet.id,
                                                                route_table_id=public_route_table.id,
-                                                               opts=pulumi.ResourceOptions(depends_on=[public_route_table]))
+                                                               opts=pulumi.ResourceOptions(depends_on=[public_subnet, public_route_table]))
 
 # Create Security Group for EC2 Instance
 ec2_security_group = aws.ec2.SecurityGroup(
@@ -73,6 +73,7 @@ ec2_instance = aws.ec2.Instance("my-ec2-instance",
                                 ami="ami-04a81a99f5ec58529",  # Example AMI ID, replace with your desired AMIs
                                 tags={"Name": "my-ec2-instance"},
                                 opts=pulumi.ResourceOptions(depends_on=[public_subnet, ec2_security_group]))
+
 # Create Private Subnet within VPC
 private_subnet = aws.ec2.Subnet("private-subnet",
                                 vpc_id=vpc.id,
@@ -82,7 +83,7 @@ private_subnet = aws.ec2.Subnet("private-subnet",
                                 opts=pulumi.ResourceOptions(depends_on=[vpc]),
                                 tags={"Name": "private-subnet"})
 
-                                # Create NAT Gateway in Public Subnet
+# Create NAT Gateway in Public Subnet
 # Allocate an Elastic IP
 eip = aws.ec2.Eip("my-eip")
 
@@ -92,6 +93,7 @@ nat_gateway = aws.ec2.NatGateway("my-nat-gateway",
                                 allocation_id=eip.id,  # Corrected to use EIP's ID
                                 opts=pulumi.ResourceOptions(depends_on=[public_subnet, eip]),  # Updated dependency
                                 tags={"Name": "my-nat-gateway"})
+
 # Create Route Table for Private Subnet
 private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
                                          vpc_id=vpc.id,
@@ -106,7 +108,7 @@ private_route_table = aws.ec2.RouteTable("my-vpc-private-rt",
 private_route_table_association = aws.ec2.RouteTableAssociation("private-subnet-association",
                                                                 subnet_id=private_subnet.id,
                                                                 route_table_id=private_route_table.id,
-                                                                opts=pulumi.ResourceOptions(depends_on=[private_route_table]))
+                                                                opts=pulumi.ResourceOptions(depends_on=[private_subnet, private_route_table]))
 
 # Create Security Group for Lambda function
 lambda_security_group = aws.ec2.SecurityGroup("lambda-security-group",
@@ -142,6 +144,7 @@ lambda_role = aws.iam.Role("lambda-role",
                                    }
                                ]
                            }""")
+
 # Attach IAM Policy to Lambda Role
 lambda_policy_attachment = aws.iam.RolePolicyAttachment("lambda-policy-attachment",
     role=lambda_role.name,
@@ -190,7 +193,8 @@ repo = aws.ecr.Repository('my-app-repo',
     image_tag_mutability="MUTABLE",
     image_scanning_configuration={
         "scanOnPush": True
-    }
+    },
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
 )
 
 # Get repository credentials
@@ -218,7 +222,8 @@ image = docker.Image('nginx-ecr-image',
         "server": registry_server,
         "username": decoded_creds.apply(lambda creds: creds[0]),
         "password": decoded_creds.apply(lambda creds: creds[1]),
-    }
+    },
+    opts=pulumi.ResourceOptions(depends_on=[repo]),
 )
 
 # Create Lambda function
@@ -253,8 +258,10 @@ log_group = aws.cloudwatch.LogGroup("lambda-log-group",
 bucket = aws.s3.Bucket("lambda-function-bucket-poridhi",
     bucket="lambda-function-bucket-poridhi-fazlul",
     acl="private",
-    tags={"Name": "Lambda Function Bucket"}
+    tags={"Name": "Lambda Function Bucket"},
+    opts=pulumi.ResourceOptions(depends_on=[vpc]),
 )
+
 def upload_exports_to_s3(outputs):
     # Convert outputs to JSON
     outputs_json = json.dumps(outputs, indent=2)
@@ -264,7 +271,8 @@ def upload_exports_to_s3(outputs):
         bucket=bucket.id,
         key="pulumi-exports.json",
         content=outputs_json,
-        content_type="application/json"
+        content_type="application/json",
+        opts=pulumi.ResourceOptions(depends_on=[bucket]),
     )
 
 # Collect all outputs
