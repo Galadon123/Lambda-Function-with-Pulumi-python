@@ -11,10 +11,10 @@ class LambdaUpdater(pulumi.dynamic.ResourceProvider):
     def create(self, props):
         return self.update(None, props)
 
-    def update(self, _id, props):
+    def update(self, _id, props, olds=None):  # Add olds parameter with default value None
         cmd = f"aws lambda update-function-code --function-name {props['function_name']} --image-uri {props['image_uri']} --region {props['region']}"
         result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-        return pulumi.dynamic.CreateResult(id_=props['function_name'], outs=props)
+        return pulumi.dynamic.UpdateResult(outs=props)  # Change to UpdateResult
 
 class LambdaUpdate(pulumi.dynamic.Resource):
     def __init__(self, name, props, opts = None):
