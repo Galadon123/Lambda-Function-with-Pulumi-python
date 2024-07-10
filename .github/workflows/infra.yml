@@ -1,5 +1,4 @@
 name: Pulumi Deploy
-
 on:
   push:
     branches:
@@ -24,7 +23,12 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install pulumi pulumi-aws
+          pip install pulumi pulumi-aws pulumi_docker
+
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker.io
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

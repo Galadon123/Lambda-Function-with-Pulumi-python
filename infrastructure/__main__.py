@@ -12,7 +12,7 @@ network = create_network_infrastructure()
 # Create security groups
 security_groups = create_security_groups(network["vpc"].id)
 
-# Create Lambda function and related resources
+# Create Lambda function and related 
 lambda_resources = create_lambda_function(
     network["vpc"].id,
     network["private_subnet"].id,
