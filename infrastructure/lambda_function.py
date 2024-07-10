@@ -2,6 +2,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_docker as docker
 import base64
+from pulumi_docker import Image, DockerBuild, ImageRegistry
 
 def create_lambda_function(vpc_id, private_subnet_id, lambda_security_group_id):
     # Create IAM Role for Lambda
@@ -90,11 +91,11 @@ def create_lambda_function(vpc_id, private_subnet_id, lambda_security_group_id):
             context=".",
             dockerfile="Dockerfile",
         ),
-        registry={
-            "server": registry_server,
-            "username": decoded_creds.apply(lambda creds: creds[0]),
-            "password": decoded_creds.apply(lambda creds: creds[1]),
-        }
+        registry=ImageRegistry(
+          server=registry_server,
+          username=decoded_creds.apply(lambda creds: creds[0]),
+          password=decoded_creds.apply(lambda creds: creds[1]),
+    )
     )
 
     # Create Lambda function
