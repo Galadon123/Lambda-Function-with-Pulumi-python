@@ -16,7 +16,7 @@ exports.handler = async (event) => {
           } else if (event.path === '/default/my-lambda-function/test2') {
             response = {
               statusCode: 200,
-              body: JSON.stringify('This is test2 route  !'),
+              body: JSON.stringify('This is test2 route !'),
             };
           } else {
             response = {
