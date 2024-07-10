@@ -6,7 +6,7 @@ from security import create_security_groups
 from lambda_function import create_lambda_function
 from storage import create_storage_and_outputs
 
-# Create network infrastrucs
+# Create network infrastruc
 network = create_network_infrastructure()
 
 # Create security groups
