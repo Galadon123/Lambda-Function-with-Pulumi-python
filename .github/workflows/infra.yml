@@ -23,7 +23,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install pulumi pulumi-aws pulumi_docker
+          pip install pulumi pulumi-aws 'pulumi_docker>=3.0.0,<4.0.0'
 
       - name: Install Docker
         run: |
