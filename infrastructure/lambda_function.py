@@ -86,7 +86,7 @@ def create_lambda_function(vpc_id, private_subnet_id, lambda_security_group_id):
     # Push the Docker image to the ECR repository
     image = docker.Image('nginx-ecr-image',
         image_name=ecr_image_name,
-        build=docker.DockerBuildArgs(
+        build=docker.DockerBuild(
             context=".",
             dockerfile="Dockerfile",
         ),
