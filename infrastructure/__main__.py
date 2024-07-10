@@ -12,7 +12,7 @@ network = create_network_infrastructure()
 # Create security groups
 security_groups = create_security_groups(network["vpc"].id)
 
-# Create Lambda function and related resources
+# Create Lambda function and re
 lambda_resources = create_lambda_function(
     network["vpc"].id,
     network["private_subnet"].id,
@@ -22,7 +22,7 @@ lambda_resources = create_lambda_function(
 # Create S3 bucket and prepare for output storage
 bucket, upload_exports_to_s3 = create_storage_and_outputs(network["vpc"].id)
 
-# Collect all outputs
+# Collect all outputsfas
 all_outputs = {
     "vpc_id": network["vpc"].id,
     "public_subnet_id": network["public_subnet"].id,
