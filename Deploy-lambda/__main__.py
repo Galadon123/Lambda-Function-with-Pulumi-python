@@ -41,7 +41,7 @@ def get_exports_from_s3(bucket_name, object_key):
     
     # Check if s3_object.body is a string or an Output
     if isinstance(s3_object.body, str):
-        # If it's a string, parse it and wrap it in a Pulumi Output
+        # If it's a string, parse it and wrap it in a Pulumi Outputs
         return pulumi.Output.from_input(json.loads(s3_object.body))
     else:
         # If it's an Output, apply json.loads to it
