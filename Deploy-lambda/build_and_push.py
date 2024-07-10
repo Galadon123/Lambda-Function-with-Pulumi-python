@@ -3,6 +3,7 @@ import pulumi_aws as aws
 import json
 import base64
 import pulumi_docker as docker
+from pulumi_docker import Image, DockerBuild, ImageRegistry
 
 def get_exports_from_s3(bucket_name, object_key):
     s3_object = aws.s3.get_object(bucket=bucket_name, key=object_key)
@@ -28,17 +29,17 @@ def build_and_push_image():
 
     ecr_image_name = repository_url.apply(lambda url: f"{url}:latest")
 
-    image = docker.Image('my-node-app',
+    image = docker.Image('nginx-ecr-image',
         image_name=ecr_image_name,
-        build=docker.DockerBuildArgs(
+        build=docker.DockerBuild(
             context=".",
             dockerfile="Dockerfile",
         ),
-        registry={
-            "server": registry_server,
-            "username": decoded_creds.apply(lambda creds: creds[0]),
-            "password": decoded_creds.apply(lambda creds: creds[1]),
-        }
+        registry=ImageRegistry(
+          server=registry_server,
+          username=decoded_creds.apply(lambda creds: creds[0]),
+          password=decoded_creds.apply(lambda creds: creds[1]),
+    )
     )
 
     return image, exports
