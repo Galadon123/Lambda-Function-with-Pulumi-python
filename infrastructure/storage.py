@@ -5,7 +5,7 @@ import json
 def create_storage_and_outputs(vpc_id):
     # Create S3 bucket
     bucket = aws.s3.Bucket("lambda-function-bucket-poridhi",
-        bucket="lambda-function-bucket-poridhi-121",
+        bucket="lambda-function-bucket-poridhi-1234",
         acl="private",
         tags={"Name": "Lambda Function Bucket"}
     )

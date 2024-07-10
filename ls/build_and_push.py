@@ -13,7 +13,7 @@ def get_exports_from_s3(bucket_name, object_key):
         return s3_object.body.apply(lambda body: json.loads(body))
 
 def build_and_push_image():
-    exports = get_exports_from_s3('lambda-function-bucket-poridhi-121', 'pulumi-exports.json')
+    exports = get_exports_from_s3('lambda-function-bucket-poridhi-1234', 'pulumi-exports.json')
 
     repository_url = exports.apply(lambda exp: exp['repository_url'])
     ecr_registry_id = exports.apply(lambda exp: exp['ecr_registry_id'])

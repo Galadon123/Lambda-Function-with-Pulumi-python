@@ -9,20 +9,22 @@ import time
 
 class LambdaUpdater(pulumi.dynamic.ResourceProvider):
     def create(self, props):
-        return self.update(None, props)
-
-    def update(self, _id, props, olds=None):
         cmd = f"aws lambda update-function-code --function-name {props['function_name']} --image-uri {props['image_uri']} --region {props['region']}"
         result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
         
         # Generate a unique ID for this update
         new_id = f"{props['function_name']}_{props['timestamp']}"
         
-        # Include the new_id in the outs dictionary
-        outs = dict(props)
-        outs['id'] = new_id
+        return pulumi.dynamic.CreateResult(id_=new_id, outs=props)
+
+    def update(self, id, props, olds):
+        cmd = f"aws lambda update-function-code --function-name {props['function_name']} --image-uri {props['image_uri']} --region {props['region']}"
+        result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
         
-        return pulumi.dynamic.UpdateResult(outs=outs)
+        # Use the existing ID
+        props['id'] = id
+        
+        return pulumi.dynamic.UpdateResult(outs=props)
 
 class LambdaUpdate(pulumi.dynamic.Resource):
     def __init__(self, name, props, opts = None):
@@ -45,7 +47,7 @@ def get_exports_from_s3(bucket_name, object_key):
         return s3_object.body.apply(lambda body: json.loads(body))
 
 # Usage
-exports = get_exports_from_s3('lambda-function-bucket-poridhi-121', 'pulumi-exports.json')
+exports = get_exports_from_s3('lambda-function-bucket-poridhi-1234', 'pulumi-exports.json')
 
 # Get ECR repository details from exports
 repository_url = exports.apply(lambda exp: exp['repository_url'])
@@ -165,7 +167,7 @@ test2_integration = aws.apigateway.Integration("test2Integration",
 )
 
 # Grant API Gateway permission to invoke the Lambda function
-permission = aws.lambda_.Permission("myPermission",
+permission = aws.lambda_.Permission("lambda_Permission",
     action="lambda:InvokeFunction",
     function=lambda_function_arn,
     principal="apigateway.amazonaws.com",
